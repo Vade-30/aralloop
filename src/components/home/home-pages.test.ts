@@ -111,11 +111,29 @@ describe("role picker", () => {
     expect(text).not.toContain("Continue");
   });
 
+  it("shows the loop in five steps and which steps each group does", async () => {
+    const text = html(await RolePickerPage());
+    const steps = ["Lesson", "AI draft", "Student answers", "Feedback", "Parent summary"];
+    let last = -1;
+    for (const step of steps) {
+      const at = text.indexOf(`>${step}<`);
+      expect(at).toBeGreaterThan(last);
+      last = at;
+    }
+    expect(text).toContain("Teacher in control");
+    expect(text).toContain("Steps 1 and 2 of the loop");
+    expect(text).toContain("Steps 3 and 4 of the loop");
+    expect(text).toContain("Step 5 of the loop");
+    // Nothing is chosen yet, so the first teacher is marked as the place to start.
+    expect(text.match(/Start here/g)).toHaveLength(1);
+  });
+
   it("offers to continue when an account is already chosen", async () => {
     mocks.getCurrentUser.mockResolvedValue(users[3]);
     const text = html(await RolePickerPage());
     expect(text).toContain('href="/parent"');
     expect(text).toContain("In use");
+    expect(text).not.toContain("Start here");
   });
 
   it("explains what to do when there are no accounts", async () => {

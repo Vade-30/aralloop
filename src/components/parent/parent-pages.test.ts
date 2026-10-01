@@ -190,6 +190,42 @@ describe("parent home", () => {
     expect(text).toContain('href="/parent/submissions/submission-1"');
     expect(text).toContain("Cell division");
     expect(text).toContain("Not answered yet");
+    // Both lists are there as labelled sections, the answered one first.
+    expect(text).toContain('aria-labelledby="results-title"');
+    expect(text).toContain('aria-labelledby="waiting-title"');
+    expect(text.indexOf('id="results-title"')).toBeLessThan(text.indexOf('id="waiting-title"'));
+    expect(text.indexOf("Parts of the cell")).toBeLessThan(text.indexOf("Cell division"));
+  });
+
+  it("sums up the child's results in the tiles at the top", async () => {
+    mocks.listSubmissionsForStudent.mockResolvedValue([
+      submission,
+      {
+        ...submission,
+        id: "submission-2",
+        activityId: "activity-3",
+        totalScore: 1,
+        maxScore: 2,
+        needsReview: true,
+      },
+    ]);
+    const text = html(await ParentHomePage());
+    // One full score and one half score: each activity counts the same.
+    expect(text).toContain("75%");
+    expect(text).toContain("Average score");
+    expect(text).toContain("Teacher is checking");
+    expect(text).toContain('aria-label="Score: 1 out of 2"');
+    // One of the two published activities is answered.
+    expect(text).toContain('aria-valuenow="1"');
+    expect(text).toContain('aria-valuemax="2"');
+  });
+
+  it("says so when the child has answered nothing yet", async () => {
+    mocks.listSubmissionsForStudent.mockResolvedValue([]);
+    const text = html(await ParentHomePage());
+    expect(text).toContain("Sample Child has not answered an activity yet.");
+    expect(text).toContain("Cell division");
+    expect(text).not.toContain("/parent/submissions/");
   });
 
   it("says so when no child is linked", async () => {
@@ -241,6 +277,30 @@ describe("parent submission page", () => {
     expect(text).toContain('aria-pressed="true"');
     expect(text).toContain("so this score may change");
     expect(text).not.toContain("Writing the summary");
+    // The language switch is a labelled pair of buttons with one pressed.
+    expect(text).toContain('aria-label="Summary language"');
+    expect(text.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(text.match(/aria-pressed="false"/g)).toHaveLength(1);
+  });
+
+  it("shows the score and how each question went at the top", async () => {
+    const text = html(await openSubmission());
+    expect(text).toContain('aria-label="Score: 1 out of 1"');
+    expect(text).toContain("Sample Child&#x27;s score");
+    expect(text).toContain("Question 1: Full points");
+    expect(text).not.toContain("so this score may change");
+  });
+
+  it("marks an answer the teacher has not graded yet", async () => {
+    mocks.getSubmissionById.mockResolvedValue({
+      ...submission,
+      totalScore: 0,
+      needsReview: true,
+      answers: [{ ...submission.answers[0], score: 0, gradedBy: "pending", needsReview: true }],
+    });
+    const text = html(await openSubmission());
+    expect(text).toContain("Question 1: Not graded yet");
+    expect(text).toContain("so this score may change");
   });
 
   it("starts writing the summary when none is stored", async () => {

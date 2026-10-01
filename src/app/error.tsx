@@ -3,8 +3,11 @@
 // Fallback for any page that fails to render, for example when the database
 // cannot be reached. Error boundaries must be client components.
 
+import { House, RotateCw, Unplug } from "lucide-react";
 import { useEffect } from "react";
-import { Alert, Button, ButtonLink, Page } from "@/components/ui";
+import { StateArt } from "@/components/home/StateArt";
+import { StateScreen } from "@/components/StateScreen";
+import { Button, ButtonLink } from "@/components/ui";
 
 export default function ErrorPage({
   error,
@@ -19,17 +22,27 @@ export default function ErrorPage({
   }, [error]);
 
   return (
-    <Page>
-      <Alert tone="danger" title="This page could not load">
-        Something went wrong on our side. Try again. If it keeps happening, go back to
-        the start and choose an account again.
-      </Alert>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => retry()}>Try again</Button>
-        <ButtonLink href="/" variant="secondary">
-          Go to the start
-        </ButtonLink>
-      </div>
-    </Page>
+    <StateScreen
+      title="This page could not load"
+      art={
+        <StateArt tone="danger">
+          <Unplug />
+        </StateArt>
+      }
+      alert
+      message="Something went wrong on our side. Try again. If it keeps happening, go back to the start and choose an account again."
+      actions={
+        <>
+          <Button size="lg" onClick={() => retry()}>
+            <RotateCw className="h-5 w-5" aria-hidden="true" />
+            Try again
+          </Button>
+          <ButtonLink href="/" variant="secondary" size="lg">
+            <House className="h-5 w-5" aria-hidden="true" />
+            Go to the start
+          </ButtonLink>
+        </>
+      }
+    />
   );
 }

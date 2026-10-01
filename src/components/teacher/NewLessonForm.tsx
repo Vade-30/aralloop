@@ -5,9 +5,10 @@
 // requests, so a failed generation never creates the lesson twice: the saved
 // lesson id is kept and "Try again" repeats only the generation.
 
+import { ArrowRight, CircleCheck, CloudUpload, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { LESSON_PROMPT_MAX } from "@/lib/ai/prompts";
 import { api, errorMessage } from "@/lib/client-api";
 import {
@@ -16,17 +17,33 @@ import {
   type CreateLessonResponse,
   type ExtractResponse,
 } from "@/lib/contracts";
-import { Alert, Button, Card, Field, Input, Spinner, Textarea, cn } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, Input, Spinner, Textarea, cn } from "@/components/ui";
 import {
   DEFAULT_GENERATE_OPTIONS,
   GENERATING_MESSAGE,
   GenerateOptionFields,
   requestActivity,
 } from "./GenerateOptions";
+import { LessonGenerating } from "./LessonGenerating";
 
 const ACCEPTED_FILES = ".txt,.md,.pdf,.docx";
 const UPLOAD_MAX_MB = Math.round(LIMITS.uploadMaxBytes / (1024 * 1024));
 const count = new Intl.NumberFormat("en-PH");
+
+/** Card heading with the number of the step in front. */
+function StepHeading({ step, children }: { step: number; children: ReactNode }) {
+  return (
+    <h2 className="flex flex-wrap items-center gap-2.5 text-xl font-extrabold text-ink">
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-brand-600 text-base text-white"
+      >
+        {step}
+      </span>
+      {children}
+    </h2>
+  );
+}
 
 export function NewLessonForm() {
   const router = useRouter();
@@ -39,6 +56,8 @@ export function NewLessonForm() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadNote, setUploadNote] = useState<string | null>(null);
+  /** A file is being dragged over the upload area. Changes its looks only. */
+  const [dragging, setDragging] = useState(false);
 
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +70,9 @@ export function NewLessonForm() {
   /** Longer than what the AI is given when it writes the activity. */
   const partlyRead = !tooLong && length > LESSON_PROMPT_MAX;
   const lessonLocked = working || uploading || savedLessonId !== null;
+  /** How much of the allowed length is used, for the bar under the text box. */
+  const usedPercent =
+    length === 0 ? 0 : Math.min(100, Math.max(2, (length / LIMITS.lessonContentMax) * 100));
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const input = event.target;
@@ -139,8 +161,18 @@ export function NewLessonForm() {
   }
 
   return (
-    <form onSubmit={generate} noValidate className="space-y-4">
-      <Card className="space-y-4">
+    <form onSubmit={generate} noValidate className="min-w-0 space-y-6">
+      <Card className="animate-rise space-y-5">
+        <StepHeading step={1}>
+          Your lesson
+          {savedLessonId !== null && (
+            <Badge tone="success" className="animate-pop font-sans">
+              <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Saved
+            </Badge>
+          )}
+        </StepHeading>
+
         <Field label="Lesson title" htmlFor="lesson-title">
           <Input
             id="lesson-title"
@@ -168,48 +200,105 @@ export function NewLessonForm() {
             aria-describedby="lesson-content-count"
             onChange={(event) => setContent(event.target.value)}
           />
-          <p
-            id="lesson-content-count"
-            className={cn(
-              "mt-1 text-right text-xs",
-              tooLong ? "font-medium text-red-700" : "text-slate-500",
-            )}
-          >
-            {count.format(length)} / {count.format(LIMITS.lessonContentMax)} characters
-          </p>
+          <div className="mt-2 flex items-center gap-3">
+            {/* Decoration: the counter beside it says the same in words. */}
+            <span
+              aria-hidden="true"
+              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-brand-100"
+            >
+              <span
+                className={cn(
+                  "block h-full rounded-full transition-[width,background-color] duration-300",
+                  tooLong
+                    ? "bg-red-500"
+                    : partlyRead
+                      ? "bg-amber-500"
+                      : tooShort
+                        ? "bg-brand-300"
+                        : "bg-emerald-500",
+                )}
+                style={{ width: `${usedPercent}%` }}
+              />
+            </span>
+            <p
+              id="lesson-content-count"
+              className={cn(
+                "flex flex-none items-center gap-1 text-xs font-bold",
+                tooLong ? "text-red-700" : "text-muted",
+              )}
+            >
+              {tooLong && <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />}
+              {!tooLong && !tooShort && (
+                <CircleCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+              )}
+              {count.format(length)} / {count.format(LIMITS.lessonContentMax)} characters
+            </p>
+          </div>
           {partlyRead && (
-            <p className="mt-1 text-xs text-amber-800">
-              This lesson is long. The AI writes the activity from about the first{" "}
-              {count.format(LESSON_PROMPT_MAX)} characters, so the last part may not be covered.
-              Split a long lesson in two if you want questions on all of it.
+            <p className="mt-2 flex items-start gap-2 rounded-xl bg-accent-50 px-3 py-2 text-xs font-bold text-amber-900">
+              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 flex-none" aria-hidden="true" />
+              <span>
+                This lesson is long. The AI writes the activity from about the first{" "}
+                {count.format(LESSON_PROMPT_MAX)} characters, so the last part may not be covered.
+                Split a long lesson in two if you want questions on all of it.
+              </span>
             </p>
           )}
         </Field>
 
         <div>
-          <label htmlFor="lesson-file" className="mb-1 block text-sm font-medium text-slate-800">
+          <label htmlFor="lesson-file" className="mb-1.5 block text-sm font-extrabold text-ink">
             Upload a file instead
           </label>
-          <input
-            id="lesson-file"
-            type="file"
-            accept={ACCEPTED_FILES}
-            disabled={lessonLocked}
-            onChange={handleFile}
-            className="block w-full text-sm text-slate-700 file:mr-3 file:min-h-10 file:rounded-lg file:border file:border-solid file:border-slate-300 file:bg-white file:px-3 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-50 disabled:opacity-60"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            Text, Markdown, PDF or Word file, up to {UPLOAD_MAX_MB} MB. Its text replaces what is
-            in the box above.
-          </p>
+          {/* The file input is real and covers the whole area, invisibly, so a
+              click, a key press and a dropped file all reach it. */}
+          <div
+            className={cn(
+              "relative flex items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-4 transition-colors sm:gap-4",
+              "has-[input:focus-visible]:[outline-offset:2px] has-[input:focus-visible]:[outline:3px_solid_#3b68f5]",
+              dragging ? "border-brand-600 bg-brand-50" : "border-brand-200 bg-canvas",
+              lessonLocked ? "opacity-60" : "hover:border-brand-400 hover:bg-brand-50",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "flex h-12 w-12 flex-none items-center justify-center rounded-2xl border-2 border-line bg-white text-brand-700 shadow-edge-sm transition-transform",
+                dragging && "-translate-y-0.5",
+              )}
+            >
+              {uploading ? <Spinner className="h-6 w-6" /> : <CloudUpload className="h-6 w-6" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-[15px] font-extrabold text-ink">
+                {dragging ? "Drop the file to read it" : "Choose a file or drop it here"}
+              </p>
+              <p id="lesson-file-hint" className="mt-0.5 text-xs font-semibold text-muted">
+                Text, Markdown, PDF or Word file, up to {UPLOAD_MAX_MB} MB. Its text replaces what
+                is in the box above.
+              </p>
+            </div>
+            <input
+              id="lesson-file"
+              type="file"
+              accept={ACCEPTED_FILES}
+              disabled={lessonLocked}
+              aria-describedby="lesson-file-hint"
+              onChange={handleFile}
+              onDragEnter={() => setDragging(true)}
+              onDragLeave={() => setDragging(false)}
+              onDrop={() => setDragging(false)}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 file:cursor-pointer disabled:cursor-not-allowed"
+            />
+          </div>
           {uploading && (
-            <p role="status" className="mt-2 flex items-center gap-2 text-sm text-slate-700">
-              <Spinner className="h-4 w-4" />
+            <p role="status" className="mt-2 flex items-center gap-2 text-sm font-bold text-ink">
+              <Spinner className="h-4 w-4 text-brand-600" />
               Reading the file.
             </p>
           )}
           {uploadNote && !uploading && (
-            <Alert tone="info" className="mt-2 break-words">
+            <Alert tone="info" className="mt-2 animate-pop break-words">
               {uploadNote}
             </Alert>
           )}
@@ -221,7 +310,9 @@ export function NewLessonForm() {
         </div>
       </Card>
 
-      <Card className="space-y-4">
+      <Card className="animate-rise space-y-5" style={{ animationDelay: "90ms" }}>
+        <StepHeading step={2}>The activity</StepHeading>
+
         <GenerateOptionFields
           idPrefix="new-lesson"
           value={options}
@@ -235,7 +326,7 @@ export function NewLessonForm() {
             the format and try again, or{" "}
             <Link
               href={`/teacher/lessons/${savedLessonId}`}
-              className="font-medium underline underline-offset-2"
+              className="font-extrabold underline underline-offset-2"
             >
               open the lesson page
             </Link>
@@ -252,15 +343,17 @@ export function NewLessonForm() {
           </Alert>
         )}
 
-        {working && (
-          <p role="status" className="flex items-start gap-2 text-sm text-slate-700">
-            <Spinner className="mt-0.5 h-4 w-4 shrink-0" />
-            {GENERATING_MESSAGE}
-          </p>
-        )}
+        {working && <LessonGenerating message={GENERATING_MESSAGE} />}
 
-        <Button type="submit" size="lg" className="w-full sm:w-auto" loading={working} disabled={uploading}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full sm:w-auto"
+          loading={working}
+          disabled={uploading}
+        >
           {savedLessonId !== null ? "Try again" : "Generate activity"}
+          {!working && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
         </Button>
       </Card>
     </form>

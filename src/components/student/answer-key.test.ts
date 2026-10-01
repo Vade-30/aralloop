@@ -260,6 +260,10 @@ describe("student activity page, after submitting", () => {
     expect(text).toContain("Sample mode");
     expect(text).toContain("Partial points");
     expect(text).toContain("No points");
+    // The score card names each question's outcome, the unanswered one included.
+    expect(text).toContain("Question 1: No points");
+    expect(text).toContain("Question 2: Partial points");
+    expect(text).toContain("Question 3: No points");
     expect(text).toContain("Ask about this activity");
   });
 

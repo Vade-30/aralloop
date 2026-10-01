@@ -4,6 +4,7 @@ import { getAiStatus } from "@/lib/ai";
 import { getCurrentUser, HOME_PATH } from "@/lib/session";
 import type { AiProviderName, Role } from "@/lib/types";
 import { SwitchAccountButton } from "./SwitchAccountButton";
+import { PAGE_WIDTH, cn } from "./ui";
 
 const ROLE_LABELS: Record<Role, string> = {
   teacher: "Teacher",
@@ -24,7 +25,12 @@ export async function AppHeader() {
 
   return (
     <header className="relative z-10 bg-brand-900 text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6",
+          PAGE_WIDTH,
+        )}
+      >
         <Link
           href={user ? HOME_PATH[user.role] : "/"}
           className="flex min-h-10 items-center gap-2.5 font-display text-2xl font-extrabold text-white"

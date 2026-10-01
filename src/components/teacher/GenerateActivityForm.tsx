@@ -2,16 +2,18 @@
 
 // Lesson page: asks the AI for one more draft activity from a saved lesson.
 
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "@/lib/client-api";
-import { Alert, Button, Spinner } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import {
   DEFAULT_GENERATE_OPTIONS,
   GENERATING_MESSAGE,
   GenerateOptionFields,
   requestActivity,
 } from "./GenerateOptions";
+import { LessonGenerating } from "./LessonGenerating";
 
 export function GenerateActivityForm({
   lessonId,
@@ -54,14 +56,10 @@ export function GenerateActivityForm({
           {error} Your lesson is still saved, so you can try again.
         </Alert>
       )}
-      {working && (
-        <p role="status" className="flex items-start gap-2 text-sm text-slate-700">
-          <Spinner className="mt-0.5 h-4 w-4 shrink-0" />
-          {GENERATING_MESSAGE}
-        </p>
-      )}
-      <Button type="submit" className="w-full sm:w-auto" loading={working}>
+      {working && <LessonGenerating message={GENERATING_MESSAGE} />}
+      <Button type="submit" className="w-full" loading={working}>
         {error ? "Try again" : hasActivities ? "Generate another activity" : "Generate activity"}
+        {!working && <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />}
       </Button>
     </form>
   );

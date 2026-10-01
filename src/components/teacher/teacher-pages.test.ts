@@ -208,6 +208,10 @@ describe("activity page", () => {
         generated.reason,
         "AI-generated draft",
         "Nothing is visible to students until you publish.",
+        // A draft the AI wrote in full opens with every item ready.
+        "Ready to publish",
+        "2 of 2 items ready",
+        "Student view",
         "Item 1",
         "Item 2",
         "Mark choice 2 as correct",
@@ -220,8 +224,11 @@ describe("activity page", () => {
       ]) {
         expect(page).toContain(expected);
       }
-      // The correct choice arrives already marked.
-      expect(html).toMatch(/<input[^>]*type="radio"[^>]*checked=""/);
+      // The correct choice arrives already marked. The answer type is a radio
+      // group too, so this looks at the group that marks the correct choice.
+      expect(html).toMatch(/<input[^>]*type="radio"[^>]*name="[^"]*-correct"[^>]*checked=""/);
+      // Each item's answer type arrives chosen as well.
+      expect(html).toMatch(/<input[^>]*name="[^"]*-type"[^>]*checked=""[^>]*value="short_answer"/);
     } finally {
       await deleteActivity(draft.id);
     }

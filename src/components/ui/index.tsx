@@ -6,16 +6,24 @@
 // buttons, and chunky white cards with a raised edge (the shadow-edge tokens
 // in globals.css).
 
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Eye, Hourglass, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import type { AiProviderName } from "@/lib/types";
 
 /** Joins class names, skipping falsy values. */
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
 }
+
+/**
+ * Hover for a card that is a link or holds one stretched over it: the card
+ * lifts a little and its border turns blue. Tailwind 4 moves an element with
+ * the "translate" property, so that is what the transition names.
+ */
+export const CARD_LIFT =
+  "transition-[translate,border-color,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-brand-300";
 
 // --- Button ------------------------------------------------------------------
 
@@ -29,7 +37,7 @@ type ButtonSize = "sm" | "md" | "lg";
 
 // The button sits on a hard shadow; pressing it pushes it down onto the edge.
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-2xl font-extrabold transition-[transform,box-shadow,background-color] duration-100 active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0";
+  "inline-flex items-center justify-center gap-2 rounded-2xl font-extrabold transition-[translate,box-shadow,background-color] duration-100 active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 disabled:active:translate-y-0";
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-accent-400 text-ink shadow-edge-accent hover:bg-accent-300",
   brand: "bg-brand-600 text-white shadow-edge-brand hover:bg-brand-500",
@@ -89,6 +97,9 @@ export function ButtonLink({
 
 // --- Layout ------------------------------------------------------------------
 
+/** Width of a "wide" page. The app header and the footer line up with it. */
+export const PAGE_WIDTH = "max-w-6xl";
+
 /**
  * Page container: centred with side gutters on phones. "wide" suits
  * dashboards and lists; "narrow" suits forms and reading.
@@ -106,12 +117,31 @@ export function Page({
     <main
       className={cn(
         "mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8",
-        size === "narrow" ? "max-w-3xl" : "max-w-5xl",
+        size === "narrow" ? "max-w-3xl" : PAGE_WIDTH,
         className,
       )}
     >
       {children}
     </main>
+  );
+}
+
+// The band's shape, shared by PageHeader and its loading stand-in.
+const BAND_BASE = "relative isolate -mt-6 pt-4 text-white sm:-mt-8 sm:pt-6";
+const BAND_PLAIN = "mb-6 pb-7 sm:pb-9";
+const BAND_OVERLAP = "-mb-12 pb-20";
+
+/** The band's blue background, as wide as the window, with its two circles. */
+function BandBackdrop() {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute -top-px bottom-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden bg-brand-900"
+    >
+      {/* A shade darker on a phone, where the title's small yellow line runs over it. */}
+      <span className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-brand-700 sm:h-80 sm:w-80 sm:bg-brand-600" />
+      <span className="absolute -top-12 right-56 hidden h-24 w-24 rounded-full bg-accent-400 sm:block" />
+    </div>
   );
 }
 
@@ -142,20 +172,10 @@ export function PageHeader({
   overlap?: boolean;
 }) {
   return (
-    <header
-      className={cn(
-        // Cancels the top padding of <Page> so the band touches the app header.
-        "relative isolate -mt-6 pt-4 text-white sm:-mt-8 sm:pt-6",
-        overlap ? "-mb-12 pb-20" : "mb-6 pb-7 sm:pb-9",
-      )}
-    >
-      <div
-        aria-hidden="true"
-        className="absolute -top-px bottom-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden bg-brand-900"
-      >
-        <span className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-brand-600 sm:h-80 sm:w-80" />
-        <span className="absolute -top-12 right-56 hidden h-24 w-24 rounded-full bg-accent-400 sm:block" />
-      </div>
+    // The negative top margin cancels the top padding of <Page>, so the band
+    // touches the app header.
+    <header className={cn(BAND_BASE, overlap ? BAND_OVERLAP : BAND_PLAIN)}>
+      <BandBackdrop />
       {back && (
         <Link
           href={back.href}
@@ -170,14 +190,59 @@ export function PageHeader({
           {eyebrow && (
             <p className="text-xs font-black uppercase tracking-widest text-accent-400">{eyebrow}</p>
           )}
-          <h1 className="text-3xl font-extrabold leading-tight sm:text-[2.5rem]">{title}</h1>
+          <h1 className="break-words text-3xl font-extrabold leading-tight sm:text-[2.5rem]">
+            {title}
+          </h1>
           {description && (
             <p className="mt-1 text-[15px] font-bold text-brand-100">{description}</p>
           )}
         </div>
-        {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
+        {/* On a phone the actions take a row of their own, so one that asks
+            for the full width (w-full) gets it. */}
+        {actions && <div className="flex flex-wrap gap-3 max-sm:w-full">{actions}</div>}
       </div>
     </header>
+  );
+}
+
+/**
+ * The band while a page loads: the same shape as PageHeader, with pale blocks
+ * where the title will be. It says only that the page is loading.
+ */
+export function PageHeaderSkeleton({ overlap = false }: { overlap?: boolean }) {
+  return (
+    <header className={cn(BAND_BASE, overlap ? BAND_OVERLAP : BAND_PLAIN)}>
+      <BandBackdrop />
+      <div
+        role="status"
+        className="inline-flex min-h-8 items-center gap-2 rounded-full bg-white/15 px-3 text-sm font-extrabold text-white"
+      >
+        <Spinner className="h-4 w-4 text-accent-400" />
+        Loading
+      </div>
+      <div aria-hidden="true" className="mt-3 animate-pulse space-y-3">
+        <div className="h-9 w-3/4 max-w-md rounded-xl bg-white/25 sm:h-11" />
+        <div className="h-4 w-1/2 max-w-xs rounded-lg bg-white/15" />
+      </div>
+    </header>
+  );
+}
+
+/**
+ * A pale blue block that stands in for content while it loads. Give it a
+ * size, and a "rounded-" class if the default corners do not fit.
+ */
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "animate-sheen bg-[linear-gradient(100deg,var(--color-brand-100)_35%,var(--color-brand-50)_50%,var(--color-brand-100)_65%)] bg-[length:200%_100%]",
+        // cn does not resolve conflicting classes, so the default steps aside.
+        !className?.includes("rounded-") && "rounded-xl",
+        className,
+      )}
+    />
   );
 }
 
@@ -194,18 +259,32 @@ export function SectionTitle({ children, className }: { children: ReactNode; cla
   return <h2 className={cn("text-xl font-extrabold text-ink sm:text-2xl", className)}>{children}</h2>;
 }
 
+/**
+ * What a list shows when it has nothing in it. `art` is a small drawing shown
+ * above the words; it is decoration, so the words must say everything.
+ */
 export function EmptyState({
   title,
   description,
   action,
+  art,
+  className,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
+  art?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="rounded-3xl border-2 border-dashed border-brand-200 bg-white px-4 py-10 text-center">
-      <p className="font-display text-lg font-extrabold text-ink">{title}</p>
+    <div
+      className={cn(
+        "animate-rise rounded-3xl border-2 border-dashed border-brand-200 bg-white px-5 py-9 text-center",
+        className,
+      )}
+    >
+      {art && <div className="mb-3 flex justify-center">{art}</div>}
+      <p className="font-display text-lg font-extrabold text-ink sm:text-xl">{title}</p>
       {description && (
         <p className="mx-auto mt-1 max-w-sm text-sm font-semibold text-muted">{description}</p>
       )}
@@ -216,35 +295,79 @@ export function EmptyState({
 
 // --- Numbers and progress ----------------------------------------------------
 
-/** Row of StatTiles. Positioned, so it can overlap a PageHeader with `overlap`. */
+/**
+ * Row of StatTiles. Positioned, so it can overlap a PageHeader with `overlap`.
+ * The tiles rise in one after another.
+ */
 export function StatRow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn("relative grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4", className)}>
+    <div
+      className={cn(
+        "relative grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4",
+        "[&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:70ms] [&>*:nth-child(3)]:[animation-delay:140ms] [&>*:nth-child(4)]:[animation-delay:210ms]",
+        className,
+      )}
+    >
       {children}
     </div>
   );
 }
 
-/** One big number with a label under it. "warning" marks something to act on. */
+const STAT_TONES = {
+  brand: { value: "text-brand-600", icon: "bg-brand-50 text-brand-700" },
+  warning: { value: "text-amber-600", icon: "bg-accent-100 text-amber-800" },
+  success: { value: "text-emerald-600", icon: "bg-emerald-100 text-emerald-700" },
+};
+
+/**
+ * One big number with a label under it. "warning" marks something to act on.
+ * With an `icon`, a laptop shows it on a coloured tile beside the number; a
+ * phone has no room for it and keeps the number centred.
+ */
 export function StatTile({
   value,
   label,
   hint,
   tone = "brand",
+  icon,
 }: {
   value: ReactNode;
   label: string;
   hint?: ReactNode;
-  tone?: "brand" | "warning" | "success";
+  tone?: keyof typeof STAT_TONES;
+  /** One lucide icon. Decoration: the label says what the number is. */
+  icon?: ReactNode;
 }) {
-  const colour = { brand: "text-brand-600", warning: "text-amber-600", success: "text-emerald-600" };
   return (
-    <div className="rounded-3xl border-2 border-line bg-white px-3 py-4 text-center shadow-edge">
-      <p className={cn("font-display text-3xl font-extrabold leading-none sm:text-4xl", colour[tone])}>
-        {value}
-      </p>
-      <p className="mt-1 text-xs font-extrabold text-muted sm:text-[13px]">{label}</p>
-      {hint && <p className="text-xs font-semibold text-muted">{hint}</p>}
+    <div
+      className={cn(
+        "flex items-center justify-center gap-3.5 rounded-3xl border-2 border-line bg-white px-3 py-4 text-center shadow-edge",
+        icon !== undefined && "lg:justify-start lg:px-4 lg:text-left",
+      )}
+    >
+      {icon !== undefined && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "hidden h-12 w-12 flex-none items-center justify-center rounded-2xl lg:flex [&>svg]:h-6 [&>svg]:w-6",
+            STAT_TONES[tone].icon,
+          )}
+        >
+          {icon}
+        </span>
+      )}
+      <div className="min-w-0">
+        <p
+          className={cn(
+            "font-display text-3xl font-extrabold leading-none sm:text-4xl",
+            STAT_TONES[tone].value,
+          )}
+        >
+          {value}
+        </p>
+        <p className="mt-1 text-xs font-extrabold text-muted sm:text-[13px]">{label}</p>
+        {hint && <p className="break-words text-xs font-semibold text-muted">{hint}</p>}
+      </div>
     </div>
   );
 }
@@ -316,16 +439,24 @@ export function ProgressBar({
   max,
   label,
   tone = "brand",
+  onBand = false,
   className,
 }: {
   value: number;
   max: number;
   label: string;
-  tone?: "brand" | "accent" | "warning";
+  tone?: "brand" | "accent" | "warning" | "success";
+  /** On the blue band: a see-through track, and a thicker bar. Pair it with tone "accent". */
+  onBand?: boolean;
   className?: string;
 }) {
   const percent = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
-  const fill = { brand: "bg-brand-600", accent: "bg-accent-400", warning: "bg-amber-500" };
+  const fill = {
+    brand: "bg-brand-600",
+    accent: "bg-accent-400",
+    warning: "bg-amber-500",
+    success: "bg-emerald-500",
+  };
   return (
     <div
       role="progressbar"
@@ -333,10 +464,100 @@ export function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={max}
       aria-valuenow={value}
-      className={cn("h-2.5 overflow-hidden rounded-full bg-brand-100", className)}
+      className={cn(
+        "overflow-hidden rounded-full",
+        onBand ? "h-3 bg-white/25" : "h-2.5 bg-brand-100",
+        className,
+      )}
     >
-      <div className={cn("h-full rounded-full", fill[tone])} style={{ width: `${percent}%` }} />
+      <div
+        className={cn("h-full rounded-full transition-[width] duration-500", fill[tone])}
+        style={{ width: `${percent}%` }}
+      />
     </div>
+  );
+}
+
+// --- How an answer turned out --------------------------------------------------
+
+/**
+ * full, partial and none follow the score. "pending" is an answer nobody has
+ * graded yet; "review" is the teacher's own word for an answer waiting for
+ * them. Every screen draws these with the same icon and colour.
+ */
+export type OutcomeKind = "full" | "partial" | "none" | "pending" | "review";
+
+const OUTCOME_TILES: Record<OutcomeKind, string> = {
+  full: "bg-emerald-100 text-emerald-700",
+  partial: "bg-amber-100 text-amber-800",
+  none: "bg-red-100 text-red-700",
+  pending: "bg-slate-100 text-slate-600",
+  review: "bg-accent-400 text-ink",
+};
+
+const OUTCOME_SIZES = {
+  xs: { tile: "h-5 w-5 rounded-md", icon: "h-3 w-3" },
+  sm: { tile: "h-8 w-8 rounded-xl", icon: "h-4 w-4" },
+  md: { tile: "h-9 w-9 rounded-xl", icon: "h-5 w-5" },
+  lg: { tile: "h-12 w-12 rounded-2xl", icon: "h-6 w-6" },
+};
+
+/** A circle with one half filled in: some of the points. */
+function HalfIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="3" />
+      <path d="M12 3.5a8.5 8.5 0 0 0 0 17z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * A check for full points, a half-filled circle for partial points, an x for
+ * no points, an hourglass while nobody has graded it and an eye while the
+ * teacher is checking. The icon carries the meaning, so colour is never the
+ * only signal. Decorative: pair it with words.
+ */
+export function OutcomeIcon({ outcome, className }: { outcome: OutcomeKind; className?: string }) {
+  switch (outcome) {
+    case "full":
+      return <Check className={className} strokeWidth={3.5} aria-hidden="true" />;
+    case "partial":
+      return <HalfIcon className={className} />;
+    case "none":
+      return <X className={className} strokeWidth={3.5} aria-hidden="true" />;
+    case "pending":
+      return <Hourglass className={className} strokeWidth={2.5} aria-hidden="true" />;
+    case "review":
+      return <Eye className={className} strokeWidth={2.75} aria-hidden="true" />;
+  }
+}
+
+/** The coloured square that holds an OutcomeIcon. */
+export function OutcomeTile({
+  outcome,
+  size = "md",
+  className,
+  style,
+}: {
+  outcome: OutcomeKind;
+  size?: keyof typeof OUTCOME_SIZES;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      style={style}
+      className={cn(
+        "flex flex-none items-center justify-center",
+        OUTCOME_SIZES[size].tile,
+        OUTCOME_TILES[outcome],
+        className,
+      )}
+    >
+      <OutcomeIcon outcome={outcome} className={OUTCOME_SIZES[size].icon} />
+    </span>
   );
 }
 
@@ -449,8 +670,10 @@ export function AiLabel({
 
 // --- Form fields -------------------------------------------------------------
 
+// A text box shows focus with a blue border and a soft ring in place of the
+// page's outline.
 const INPUT_CLASS =
-  "block w-full rounded-xl border-2 border-line bg-white px-3.5 py-2.5 text-base font-semibold text-ink placeholder:font-medium placeholder:text-slate-500 focus:border-brand-600 focus:outline-none disabled:bg-slate-100";
+  "block w-full rounded-xl border-2 border-line bg-white px-3.5 py-2.5 text-base font-semibold text-ink placeholder:font-medium placeholder:text-slate-500 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-200 disabled:bg-slate-100";
 
 /** Label, optional hint and optional error wrapped around one form control. */
 export function Field({
@@ -511,7 +734,9 @@ export function ScoreRing({
   className?: string;
 }) {
   const ratio = max > 0 ? Math.min(1, Math.max(0, score / max)) : 0;
-  const stroke = ratio >= 0.75 ? "#059669" : ratio >= 0.5 ? "#d97706" : "#dc2626";
+  const stroke = { success: "#059669", warning: "#d97706", danger: "#dc2626" }[
+    scoreTone(score, max)
+  ];
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   return (
@@ -537,20 +762,38 @@ export function ScoreRing({
           style={{ "--ring-length": circumference } as React.CSSProperties}
         />
       </svg>
+      {/* The words grow with the ring, and stay readable in a small one. */}
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-display text-2xl font-extrabold text-ink">{formatScore(score)}</span>
-        <span className="mt-0.5 text-xs font-extrabold text-muted">of {formatScore(max)}</span>
+        <span
+          className="font-display font-extrabold text-ink"
+          style={{ fontSize: Math.round(size * 0.24) }}
+        >
+          {formatScore(score)}
+        </span>
+        <span
+          className="mt-0.5 font-extrabold text-muted"
+          style={{ fontSize: Math.max(11, Math.round(size * 0.11)) }}
+        >
+          of {formatScore(max)}
+        </span>
       </div>
     </div>
   );
 }
 
+/**
+ * The colour a score gets: green from 75%, amber from 50%, red below. Score,
+ * ScoreRing and any chip beside them use the same cut-offs.
+ */
+export function scoreTone(score: number, max: number): "success" | "warning" | "danger" {
+  const ratio = max > 0 ? score / max : 0;
+  return ratio >= 0.75 ? "success" : ratio >= 0.5 ? "warning" : "danger";
+}
+
 /** "8 / 10" with a colour that follows the percentage. */
 export function Score({ score, max }: { score: number; max: number }) {
-  const ratio = max > 0 ? score / max : 0;
-  const tone: Tone = ratio >= 0.75 ? "success" : ratio >= 0.5 ? "warning" : "danger";
   return (
-    <Badge tone={tone} className="px-3 text-sm">
+    <Badge tone={scoreTone(score, max)} className="px-3 text-sm">
       {formatScore(score)} / {formatScore(max)}
     </Badge>
   );

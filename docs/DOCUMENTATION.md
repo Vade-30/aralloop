@@ -2,7 +2,7 @@
 
 RAITE 2026 hackathon. Theme: "Transforming Education Through Artificial Intelligence".
 
-Team: [Team name] · Members: [Member 1], [Member 2], [Member 3] · School: [School] · Adviser: [Adviser] · Repository: [Repository link]
+Team: The unCTRLable · Members: Darlene Joy A. De Leon, Nicole T. Mallari, Sidrick Benjie G. Piquero · School: Pampanga State University · Coaches: John Mark S. Policarpio, Reden Paul L. Rivera · Repository: https://github.com/Vade-30/aralloop
 
 Related files: [README](../README.md) (how to run it) · [Architecture diagram](ARCHITECTURE.md)
 

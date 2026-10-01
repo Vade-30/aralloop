@@ -3,6 +3,7 @@
 // Teacher override for one answer: set the score and the feedback the student
 // and parent will see. Open by default when the answer is waiting for review.
 
+import { Check, CircleCheck, PenLine } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api, errorMessage } from "@/lib/client-api";
@@ -79,6 +80,7 @@ export function OverrideForm({
   if (!open) {
     return (
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        <PenLine className="h-4 w-4" aria-hidden="true" />
         Change score
       </Button>
     );
@@ -88,8 +90,13 @@ export function OverrideForm({
   const feedbackId = `feedback-${answerId}`;
 
   return (
-    <form onSubmit={save} noValidate className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-      <div className="grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+    // Full width, so in the answer's footer row it drops to a line of its own.
+    <form
+      onSubmit={save}
+      noValidate
+      className="w-full animate-rise space-y-3 rounded-2xl border-2 border-line bg-white p-3 sm:p-4"
+    >
+      <div className="grid gap-3 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
         <Field label={`Score (out of ${formatScore(points)})`} htmlFor={scoreId}>
           <Input
             id={scoreId}
@@ -121,14 +128,31 @@ export function OverrideForm({
         </Field>
       </div>
       {error && <Alert tone="danger">{error}</Alert>}
-      {saved && <Alert tone="success">Score saved.</Alert>}
-      <Button type="submit" size="sm" loading={saving}>
-        Save score
-      </Button>
-      <p className="text-xs text-slate-500">
-        Saving a score updates the student&apos;s total. The parent summary is rewritten the next
-        time the parent opens it.
-      </p>
+      {saved && (
+        <Alert tone="success" className="animate-pop">
+          <span className="flex items-center gap-2">
+            <CircleCheck className="h-4 w-4 flex-none" aria-hidden="true" />
+            Score saved.
+          </span>
+        </Alert>
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+        {/* Yellow only for an answer that is waiting for the teacher: that is
+            the main thing to do on the screen. Any other change is blue. */}
+        <Button
+          type="submit"
+          size="sm"
+          variant={needsReview ? "primary" : "brand"}
+          loading={saving}
+        >
+          {!saving && <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />}
+          Save score
+        </Button>
+        <p className="min-w-0 flex-1 basis-60 text-xs font-semibold text-muted">
+          Saving a score updates the student&apos;s total. The parent summary is rewritten the
+          next time the parent opens it.
+        </p>
+      </div>
     </form>
   );
 }

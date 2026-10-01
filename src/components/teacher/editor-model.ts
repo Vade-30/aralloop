@@ -183,7 +183,8 @@ export function parseAccepted(text: string): string[] {
   return result;
 }
 
-function parsePoints(text: string): number | null {
+/** The points as typed, or null while they are not a whole number in range. */
+export function parsePoints(text: string): number | null {
   const trimmed = text.trim();
   if (!/^\d+$/.test(trimmed)) return null;
   const value = Number(trimmed);

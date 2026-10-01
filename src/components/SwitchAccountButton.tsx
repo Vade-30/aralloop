@@ -1,10 +1,15 @@
 "use client";
 
+// "Switch account" in the app header. It clears the session and goes back to
+// the role picker. It sits on the dark blue band, so it is a see-through pill
+// like the AI status beside it, not one of the kit's light buttons.
+
+import { ArrowLeftRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
 import type { OkResponse } from "@/lib/contracts";
-import { Button } from "./ui";
+import { Spinner } from "./ui";
 
 export function SwitchAccountButton() {
   const router = useRouter();
@@ -19,8 +24,24 @@ export function SwitchAccountButton() {
   }
 
   return (
-    <Button variant="secondary" size="sm" loading={loading} onClick={switchAccount}>
+    <button
+      type="button"
+      disabled={loading}
+      aria-busy={loading || undefined}
+      onClick={switchAccount}
+      // The white ring keeps keyboard focus visible on the dark band.
+      className="group inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-white/30 bg-white/10 px-3.5 text-sm font-extrabold text-white transition-[background-color,border-color,scale] duration-100 hover:border-white/60 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
+    >
+      {loading ? (
+        <Spinner className="h-4 w-4" />
+      ) : (
+        // The two arrows swap places under the pointer.
+        <ArrowLeftRight
+          className="h-4 w-4 transition-[rotate] duration-300 group-hover:rotate-180"
+          aria-hidden="true"
+        />
+      )}
       Switch account
-    </Button>
+    </button>
   );
 }

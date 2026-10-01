@@ -1,10 +1,11 @@
 // One activity. A draft opens in the editor; a published activity is shown
 // read-only with its answer key and a link to the results.
 
+import { ArrowRight, ChartColumn } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ActivityEditor } from "@/components/teacher/ActivityEditor";
 import { PublishedActivity } from "@/components/teacher/PublishedActivity";
-import { ButtonLink, Page, PageHeader } from "@/components/ui";
+import { AiLabel, ButtonLink, Page, PageHeader } from "@/components/ui";
 import { getActivity, getLesson } from "@/lib/db/repo";
 import { requireRole } from "@/lib/session";
 
@@ -18,10 +19,12 @@ export default async function ActivityPage(props: PageProps<"/teacher/activities
   const lessonTitle = lesson?.title ?? "Lesson";
   const back = { href: "/teacher", label: "Back to class" };
 
+  // Both views start with cards that overlap the bottom of the blue band.
   if (activity.status === "draft") {
     return (
       <Page>
         <PageHeader
+          eyebrow="Draft activity"
           title="Review the draft"
           description={
             // A sample-mode draft is built by plain code and is never called AI.
@@ -30,6 +33,8 @@ export default async function ActivityPage(props: PageProps<"/teacher/activities
               : "Edit anything the AI wrote, then publish it to your class."
           }
           back={back}
+          actions={<AiLabel provider={activity.aiProvider}>AI-generated draft</AiLabel>}
+          overlap
         />
         {/* Keyed so a different activity never inherits this one's edits. */}
         <ActivityEditor key={activity.id} activity={activity} lessonTitle={lessonTitle} />
@@ -40,12 +45,18 @@ export default async function ActivityPage(props: PageProps<"/teacher/activities
   return (
     <Page>
       <PageHeader
+        eyebrow="Published activity"
         title={activity.title}
         description={`From the lesson: ${lessonTitle}`}
         back={back}
         actions={
-          <ButtonLink href={`/teacher/activities/${activity.id}/results`}>View results</ButtonLink>
+          <ButtonLink href={`/teacher/activities/${activity.id}/results`} size="lg">
+            <ChartColumn className="h-5 w-5" aria-hidden="true" />
+            View results
+            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </ButtonLink>
         }
+        overlap
       />
       <PublishedActivity activity={activity} />
     </Page>

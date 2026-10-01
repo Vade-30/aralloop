@@ -1,6 +1,7 @@
 // Results of a published activity: class summary, item analysis and every
 // student's answers, with a score override on each answer.
 
+import { ClipboardList, Eye, TrendingUp, Trophy, Users } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { ItemAnalysis } from "@/components/teacher/ItemAnalysis";
 import {
@@ -9,37 +10,27 @@ import {
   formatPercent,
   itemAnalysis,
 } from "@/components/teacher/results-model";
+import { OutcomeLegend } from "@/components/teacher/ResultsOutcome";
 import { StudentResults } from "@/components/teacher/StudentResults";
-import { AiLabel, Badge, ButtonLink, Card, Page, PageHeader, SectionTitle, cn } from "@/components/ui";
+import {
+  AiLabel,
+  Badge,
+  ButtonLink,
+  EmptyState,
+  Page,
+  PageHeader,
+  SectionTitle,
+  StatRow,
+  StatTile,
+} from "@/components/ui";
 import { getAiStatus } from "@/lib/ai";
 import { getActivity, listStudents, listSubmissions } from "@/lib/db/repo";
 import { requireRole } from "@/lib/session";
-import { ACTIVITY_TYPE_LABELS } from "@/lib/types";
+import { ACTIVITY_TYPE_LABELS, type SubmissionWithAnswers } from "@/lib/types";
 
-function Stat({
-  label,
-  value,
-  note,
-  warn = false,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-  warn?: boolean;
-}) {
-  return (
-    // Not a Card: three of these share a phone's width, so the padding is tighter.
-    <div
-      className={cn(
-        "rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4",
-        warn && "ring-2 ring-amber-300",
-      )}
-    >
-      <p className="text-xs font-medium text-slate-600">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-900 sm:text-2xl">{value}</p>
-      {note && <p className="text-xs text-slate-500">{note}</p>}
-    </div>
-  );
+/** A submission's score as a share of its maximum, 0..1. */
+function shareOf(submission: SubmissionWithAnswers): number {
+  return submission.maxScore > 0 ? submission.totalScore / submission.maxScore : 0;
 }
 
 export default async function ResultsPage(
@@ -61,58 +52,98 @@ export default async function ResultsPage(
   const toReview = countNeedingReview(submissions);
   const stats = itemAnalysis(activity.items, submissions);
 
+  // The spread of the class, for the tiles: who is at the top and how low it goes.
+  const shares = submissions.map(shareOf);
+  const highest = shares.length > 0 ? Math.max(...shares) : null;
+  const lowest = shares.length > 0 ? Math.min(...shares) : null;
+  const topSubmissions = submissions.filter((submission) => shareOf(submission) === highest);
+  // Named when one student holds the top score; a tie shows how many share it.
+  const topStudent =
+    topSubmissions.length === 1
+      ? students.find((student) => student.id === topSubmissions[0].studentId)
+      : undefined;
+  const highestHint =
+    highest === null
+      ? "No submissions yet"
+      : topSubmissions.length > 1
+        ? `${topSubmissions.length} students`
+        : (topStudent?.name ?? "1 student");
+
   return (
     <Page>
       <PageHeader
+        eyebrow="Results"
         title={activity.title}
-        description="Results"
+        description={
+          <span className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Badge tone="success">Published</Badge>
+            <Badge tone="brand">{ACTIVITY_TYPE_LABELS[activity.type]}</Badge>
+            <AiLabel provider={activity.aiProvider}>AI-generated · reviewed by teacher</AiLabel>
+          </span>
+        }
         back={{ href: "/teacher", label: "Back to class" }}
         actions={
           <ButtonLink href={`/teacher/activities/${activity.id}`} variant="secondary">
+            {/* Not the eye: on this screen the eye stands for "to review". */}
+            <ClipboardList className="h-5 w-5" aria-hidden="true" />
             View activity
           </ButtonLink>
         }
+        overlap
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-1.5">
-        <Badge tone="success">Published</Badge>
-        <Badge tone="brand">{ACTIVITY_TYPE_LABELS[activity.type]}</Badge>
-        <AiLabel provider={activity.aiProvider}>AI-generated · reviewed by teacher</AiLabel>
-      </div>
-
-      <div className="mb-8 grid grid-cols-3 gap-2 sm:gap-3">
-        <Stat
+      <StatRow className="mb-8">
+        <StatTile
+          value={
+            <>
+              {submissions.length}
+              <span className="text-xl sm:text-2xl">{` of ${students.length}`}</span>
+            </>
+          }
           label="Submitted"
-          value={`${submissions.length} of ${students.length}`}
-          note="students"
+          hint="students"
+          icon={<Users />}
         />
-        <Stat
-          label="Class average"
+        <StatTile
           value={average === null ? "–" : formatPercent(average)}
-          note={average === null ? "No submissions yet" : undefined}
+          label="Class average"
+          hint={lowest === null ? "No submissions yet" : `Lowest ${formatPercent(lowest)}`}
+          tone={average !== null && average >= 0.75 ? "success" : "brand"}
+          icon={<TrendingUp />}
         />
-        <Stat
-          label="Waiting for review"
+        <StatTile
           value={String(toReview)}
-          note={toReview === 1 ? "answer" : "answers"}
-          warn={toReview > 0}
+          label="Waiting for review"
+          hint={toReview === 1 ? "answer" : "answers"}
+          tone={toReview > 0 ? "warning" : "success"}
+          icon={<Eye />}
         />
-      </div>
+        <StatTile
+          value={highest === null ? "–" : formatPercent(highest)}
+          label="Highest score"
+          hint={highestHint}
+          icon={<Trophy />}
+        />
+      </StatRow>
 
-      <section className="mb-8">
-        <SectionTitle className="mb-3">Item analysis</SectionTitle>
+      {/* The chart and the students each take the full width: within them, the
+          bars line up beside their questions and each answer sits beside its key. */}
+      <section className="mb-9">
         <ItemAnalysis stats={stats} submissionCount={submissions.length} />
       </section>
 
       <section>
-        <SectionTitle className="mb-1">Students</SectionTitle>
-        <p className="mb-3 text-sm text-slate-600">
-          Open a student to see each answer. You can change any score.
-        </p>
+        <div className="mb-3.5 flex flex-wrap items-end justify-between gap-x-6 gap-y-2.5">
+          <div className="min-w-0">
+            <SectionTitle>Students</SectionTitle>
+            <p className="mt-0.5 text-sm font-semibold text-muted">
+              Open a student to see each answer. You can change any score.
+            </p>
+          </div>
+          {submissions.length > 0 && <OutcomeLegend className="pb-0.5" />}
+        </div>
         {students.length === 0 ? (
-          <Card>
-            <p className="text-sm text-slate-600">This class has no students yet.</p>
-          </Card>
+          <EmptyState title="This class has no students yet." />
         ) : (
           <StudentResults
             students={students}

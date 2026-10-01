@@ -1,9 +1,13 @@
 // The role picker, the first screen of the app. Visitors choose one of the
 // sample accounts instead of signing in, because this is a prototype.
 
+import { ArrowRight, Info } from "lucide-react";
 import { AccountPicker, type AccountGroup } from "@/components/home/AccountPicker";
+import { HeroArt } from "@/components/home/HeroArt";
+import { HomeMotion } from "@/components/home/HomeMotion";
+import { LoopStrip } from "@/components/home/LoopStrip";
 import { ResetDemoButton } from "@/components/home/ResetDemoButton";
-import { Alert, ButtonLink, Card, EmptyState, Page, SectionTitle } from "@/components/ui";
+import { Avatar, ButtonLink, EmptyState, Page, PageHeader } from "@/components/ui";
 import { getClass, listUsers } from "@/lib/db/repo";
 import { getCurrentUser, HOME_PATH } from "@/lib/session";
 import type { Role, SchoolClass, User } from "@/lib/types";
@@ -41,6 +45,7 @@ export default async function RolePickerPage() {
   const usersById = new Map(users.map((user) => [user.id, user]));
 
   const groups: AccountGroup[] = GROUP_ORDER.map((role) => ({
+    role,
     label: GROUP_LABELS[role],
     accounts: users
       .filter((user) => user.role === role)
@@ -54,46 +59,82 @@ export default async function RolePickerPage() {
 
   return (
     <Page>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Choose an account
-        </h1>
-        <p className="mt-2 text-base text-slate-700">
-          AralLoop turns a teacher&apos;s lesson into an activity, checks the answers, and
-          tells parents what their child should practise.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="AralLoop · AI classroom loop"
+        title="Choose an account"
+        description={
+          <>
+            AralLoop turns a teacher&apos;s lesson into an activity, checks the answers, and
+            tells parents what their child should practise.
+            {/* The picture has the right of the band to itself until an
+                account is chosen; then the card below takes that place. */}
+            {!currentUser && <HeroArt />}
+          </>
+        }
+        actions={
+          currentUser && (
+            // A white card on the band: the one yellow action when an account
+            // is already chosen.
+            <div
+              role="status"
+              className="flex w-full animate-pop flex-wrap items-center gap-3 rounded-3xl border-2 border-line bg-white p-3 text-ink shadow-edge-brand sm:w-64"
+            >
+              <Avatar name={currentUser.name} tone="brand" />
+              <p className="min-w-0 flex-1 break-words text-sm font-bold leading-snug">
+                You are using {currentUser.name}&apos;s account.
+              </p>
+              <ButtonLink href={HOME_PATH[currentUser.role]} className="w-full">
+                Continue
+                <ArrowRight className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+              </ButtonLink>
+            </div>
+          )
+        }
+        overlap
+      />
 
-      {currentUser && (
-        <Alert tone="info" className="mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p>You are using {currentUser.name}&apos;s account.</p>
-            <ButtonLink href={HOME_PATH[currentUser.role]} size="sm">
-              Continue
-            </ButtonLink>
-          </div>
-        </Alert>
-      )}
+      {/* Positioned, so the strip sits over the bottom edge of the band. It is
+          a group so the loop's steps and the account columns can light each
+          other up (see LoopStrip and AccountPicker). */}
+      <div className="group/loop relative">
+        <HomeMotion />
+        <LoopStrip />
 
-      {groups.length === 0 ? (
-        <EmptyState
-          title="No sample accounts yet"
-          description="Reset the sample data below to create the sample class."
-        />
-      ) : (
-        <AccountPicker groups={groups} currentUserId={currentUser?.id ?? null} />
-      )}
-
-      <Card className="mt-8">
-        <SectionTitle>About these accounts</SectionTitle>
-        <p className="mt-1 text-sm text-slate-600">
-          These are sample accounts with made-up names. There are no passwords because
-          this is a prototype.
-        </p>
-        <div className="mt-4">
-          <ResetDemoButton />
+        <div className="mt-6">
+          {groups.length === 0 ? (
+            <EmptyState
+              title="No sample accounts yet"
+              description="Reset the sample data below to create the sample class."
+            />
+          ) : (
+            <AccountPicker groups={groups} currentUserId={currentUser?.id ?? null} />
+          )}
         </div>
-      </Card>
+      </div>
+
+      <section
+        aria-labelledby="about-accounts"
+        className="mt-8 flex flex-col gap-4 rounded-3xl border-2 border-dashed border-brand-200 p-4 sm:p-5 md:flex-row md:items-start md:justify-between md:gap-6"
+      >
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span
+            aria-hidden="true"
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl border-2 border-line bg-white text-brand-700"
+          >
+            <Info className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 id="about-accounts" className="text-lg font-extrabold leading-tight text-ink">
+              About these accounts
+            </h2>
+            <p className="mt-1 max-w-xl text-sm font-semibold text-muted">
+              These are sample accounts with made-up names. There are no passwords because
+              this is a prototype.
+            </p>
+          </div>
+        </div>
+        <ResetDemoButton />
+      </section>
     </Page>
   );
 }

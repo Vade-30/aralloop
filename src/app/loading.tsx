@@ -1,14 +1,8 @@
-// Shown while any page is loading its data.
+// Shown while any page is loading its data: the band and pale blocks where
+// the content will be. Every area of the app shows the same one.
 
-import { Page, Spinner } from "@/components/ui";
+import { PageSkeleton } from "@/components/PageSkeleton";
 
 export default function Loading() {
-  return (
-    <Page className="flex items-center justify-center">
-      <div role="status" className="flex flex-col items-center gap-3 py-16 text-slate-600">
-        <Spinner className="h-8 w-8 text-brand-600" />
-        <p className="text-sm">Loading</p>
-      </div>
-    </Page>
-  );
+  return <PageSkeleton />;
 }

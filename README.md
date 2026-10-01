@@ -165,9 +165,8 @@ At the time of writing, `npm run lint`, `npm run typecheck`, `npm test` (297 tes
 
 ## Team
 
-- Team name: [Team name]
-- Members: [Member 1, role], [Member 2, role], [Member 3, role]
-- School: [School]
-- Adviser: [Adviser]
-- Repository: [Repository link]
-- Live demo: [Demo link, if deployed]
+- Team name: The unCTRLable
+- Members: Darlene Joy A. De Leon, Nicole T. Mallari, Sidrick Benjie G. Piquero
+- School: Pampanga State University
+- Coaches: John Mark S. Policarpio, Reden Paul L. Rivera
+- Repository: https://github.com/Vade-30/aralloop

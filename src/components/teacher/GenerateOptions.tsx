@@ -62,39 +62,44 @@ export function GenerateOptionFields({
   disabled?: boolean;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Number of items" htmlFor={`${idPrefix}-count`}>
-        <Select
-          id={`${idPrefix}-count`}
-          value={value.itemCount}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...value, itemCount: Number(event.target.value) })}
-        >
-          {ITEM_COUNTS.map((count) => (
-            <option key={count} value={count}>
-              {count} items
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Format" htmlFor={`${idPrefix}-format`}>
-        <Select
-          id={`${idPrefix}-format`}
-          value={value.preferredType}
-          disabled={disabled}
-          onChange={(event) => {
-            const preferredType = event.target.value;
-            if (isPreferredType(preferredType)) onChange({ ...value, preferredType });
-          }}
-        >
-          <option value="auto">Let the AI choose (recommended)</option>
-          {ACTIVITY_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {ACTIVITY_TYPE_LABELS[type]}
-            </option>
-          ))}
-        </Select>
-      </Field>
+    // Side by side only where the form itself is wide enough: the same fields
+    // sit in a wide card on the new lesson page and in a narrow side panel on
+    // the lesson page.
+    <div className="@container">
+      <div className="grid gap-4 @md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <Field label="Number of items" htmlFor={`${idPrefix}-count`}>
+          <Select
+            id={`${idPrefix}-count`}
+            value={value.itemCount}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, itemCount: Number(event.target.value) })}
+          >
+            {ITEM_COUNTS.map((count) => (
+              <option key={count} value={count}>
+                {count} items
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Format" htmlFor={`${idPrefix}-format`}>
+          <Select
+            id={`${idPrefix}-format`}
+            value={value.preferredType}
+            disabled={disabled}
+            onChange={(event) => {
+              const preferredType = event.target.value;
+              if (isPreferredType(preferredType)) onChange({ ...value, preferredType });
+            }}
+          >
+            <option value="auto">Let the AI choose (recommended)</option>
+            {ACTIVITY_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {ACTIVITY_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
     </div>
   );
 }
