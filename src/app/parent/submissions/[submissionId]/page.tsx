@@ -32,6 +32,9 @@ export default async function ParentSubmissionPage(
 
   const lesson = await getLesson(activity.lessonId);
   const provider = getAiStatus().provider;
+  // AI-graded answers are labelled by the service that graded them, which can
+  // differ from the one configured now.
+  const gradedBy = submission.gradingProvider ?? provider;
   const answers = new Map(submission.answers.map((answer) => [answer.itemId, answer]));
   // A summary with no recorded writer is treated as missing, as the API does,
   // so it is never shown under the wrong label.
@@ -87,7 +90,7 @@ export default async function ParentSubmissionPage(
               key={item.id}
               item={item}
               answer={answers.get(item.id)}
-              provider={provider}
+              provider={gradedBy}
               answerLabel={`${child.name}'s answer`}
             />
           ))}

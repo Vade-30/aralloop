@@ -294,6 +294,8 @@ describe("sample data", () => {
     expect(submission.maxScore).toBe(10);
     expect(submission.answers.filter((answer) => answer.score === 0)).toHaveLength(2);
     expect(submission.summaryProvider).toBe("mock");
+    // The sample grades were written by hand, so they are labelled as samples.
+    expect(submission.gradingProvider).toBe("mock");
     for (const text of [submission.summary?.en, submission.summary?.fil]) {
       expect(text?.overview).toBeTruthy();
       expect(text?.didWell.length).toBeGreaterThan(0);
@@ -457,6 +459,18 @@ describe("activities", () => {
     await deleteActivity(draft.id);
   });
 
+  it("refuses to update a published activity, so students' answers are kept", async () => {
+    const before = await getActivity(PLANT_CELL);
+    const countsBefore = await rowCounts();
+
+    expect(
+      await updateActivity(PLANT_CELL, { title: "x", instructions: "", items: [shortAnswer] }),
+    ).toBeNull();
+
+    expect(await getActivity(PLANT_CELL)).toEqual(before);
+    expect(await rowCounts()).toEqual(countsBefore);
+  });
+
   it("publishes a draft and stamps the time", async () => {
     const draft = await createDraft();
     const published = await publishActivity(draft.id);
@@ -580,6 +594,7 @@ describe("submissions", () => {
       answers,
       totalScore: 4.5,
       maxScore: 10,
+      gradingProvider: "gemini",
     });
 
     expect(created).toMatchObject({
@@ -590,6 +605,7 @@ describe("submissions", () => {
       needsReview: true,
       summary: null,
       summaryProvider: null,
+      gradingProvider: "gemini",
     });
     expect(created.submittedAt).toMatch(ISO);
     expect(created.answers.map((answer) => answer.itemId)).toEqual(
@@ -780,6 +796,36 @@ describe("demo reset", () => {
     expect(await getActivity(draft.id)).toBeNull();
     expect(await getSubmission(PLANT_CELL, MIGUEL)).toEqual(original);
     expect(await getSubmission(WATER_CYCLE, MIGUEL)).toBeNull();
+  });
+});
+
+describe("schema upgrade", () => {
+  it("adds grading_provider to a database made before the column existed", async () => {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const old = new PGlite();
+    try {
+      const statements = SCHEMA_SQL.split(";").filter((statement) => statement.trim());
+      // The earlier schema: no grading_provider column and no alter statement.
+      for (const statement of statements) {
+        if (statement.includes("alter table submissions")) continue;
+        await old.query(statement.replace(/^\s*grading_provider .*\n/m, ""));
+      }
+      const columns = async () =>
+        (
+          await old.query<{ column_name: string }>(
+            "select column_name from information_schema.columns where table_name = 'submissions'",
+          )
+        ).rows.map((row) => row.column_name);
+      expect(await columns()).not.toContain("grading_provider");
+
+      // What the app does on every start. Running it twice must be harmless.
+      for (let run = 0; run < 2; run++) {
+        for (const statement of statements) await old.query(statement);
+      }
+      expect(await columns()).toContain("grading_provider");
+    } finally {
+      await old.close();
+    }
   });
 });
 

@@ -90,6 +90,9 @@ export default async function StudentActivityPage(
   }
 
   const provider = getAiStatus().provider;
+  // AI-graded answers are labelled by the service that graded them, which can
+  // differ from the one configured now.
+  const gradedBy = submission.gradingProvider ?? provider;
   const answers = new Map(submission.answers.map((answer) => [answer.itemId, answer]));
 
   return (
@@ -115,7 +118,7 @@ export default async function StudentActivityPage(
             key={item.id}
             item={item}
             answer={answers.get(item.id)}
-            provider={provider}
+            provider={gradedBy}
             answerLabel="Your answer"
           />
         ))}

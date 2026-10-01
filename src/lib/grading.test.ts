@@ -476,6 +476,34 @@ describe("gradeSubmission", () => {
     expect(result.notice).not.toBeNull();
   });
 
+  it("treats the AI layer's placeholder for a skipped answer as not graded", async () => {
+    // What gradeFreeText really returns when the model leaves an answer out.
+    aiReturns([
+      { itemId: "id", score: 2, feedback: "Correct gas.", confidence: 0.95 },
+      {
+        itemId: "sa",
+        score: 0,
+        feedback: "This answer is waiting for your teacher to check.",
+        confidence: 0,
+      },
+    ]);
+
+    const result = await grade([identification, shortAnswer], {
+      id: "carbon dioxyde",
+      sa: "Because of chlorophyll.",
+    });
+
+    expect(result.answers[0]).toMatchObject({ gradedBy: "ai", score: 2 });
+    expect(result.answers[1]).toMatchObject({
+      gradedBy: "pending",
+      score: 0,
+      confidence: null,
+      needsReview: true,
+      feedback: "This answer is waiting for your teacher to check.",
+    });
+    expect(result.notice).toMatch(/could not be checked automatically/);
+  });
+
   it("ignores responses for items that are not in the activity", async () => {
     const result = await grade([multipleChoice], { mc: "Chloroplast", other: "x" });
     expect(result.answers).toHaveLength(1);

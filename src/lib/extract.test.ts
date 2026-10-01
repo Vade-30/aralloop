@@ -280,7 +280,7 @@ describe("rejected files", () => {
 
   it("rejects a file over the upload limit", async () => {
     const error = await extractError("big.txt", new Uint8Array(LIMITS.uploadMaxBytes + 1));
-    expect(error.userMessage).toMatch(/larger than 5 MB/);
+    expect(error.userMessage).toMatch(/larger than 4 MB/);
   });
 });
 

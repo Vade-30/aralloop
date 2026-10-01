@@ -126,6 +126,7 @@ const submission: SubmissionWithAnswers = {
   needsReview: true,
   summary: null,
   summaryProvider: null,
+  gradingProvider: null,
   submittedAt: "2026-10-01T02:00:00.000Z",
   answers: [
     {
@@ -260,5 +261,15 @@ describe("student activity page, after submitting", () => {
     expect(text).toContain("Partial points");
     expect(text).toContain("No points");
     expect(text).toContain("Ask about this activity");
+  });
+
+  it("labels an AI grade by the service that graded it, not the one in use now", async () => {
+    // Graded by a real service earlier; the page itself runs in sample mode.
+    mocks.getSubmission.mockResolvedValue({ ...submission, gradingProvider: "openai" });
+    const text = renderToStaticMarkup(createElement("div", null, await open()));
+
+    expect(text).toContain("Graded by AI");
+    // The helper below the answers still follows the current mode.
+    expect(text).toContain("The app is in sample mode");
   });
 });

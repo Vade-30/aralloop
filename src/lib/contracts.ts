@@ -32,7 +32,9 @@ export const LIMITS = {
   feedbackMax: 1_000,
   tutorQuestionMax: 500,
   tutorHistoryMax: 10,
-  uploadMaxBytes: 5 * 1024 * 1024,
+  // Vercel refuses request bodies over about 4.5 MB before the route runs, so
+  // the limit stays under that and the teacher gets our own clear message.
+  uploadMaxBytes: 4 * 1024 * 1024,
 } as const;
 
 export interface ApiErrorBody {
@@ -151,6 +153,10 @@ export const overrideAnswerRequest = z.object({
   feedback: z.string().trim().max(LIMITS.feedbackMax).optional(),
 });
 export type OverrideAnswerRequest = z.infer<typeof overrideAnswerRequest>;
+/** The whole submission, with its total and review flag recomputed. */
+export interface OverrideAnswerResponse {
+  submission: SubmissionWithAnswers;
+}
 
 // --- POST /api/submissions/[submissionId]/summary ----------------------------
 // Returns the stored parent summary, writing it first if there is none yet.

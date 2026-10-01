@@ -6,7 +6,11 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api, errorMessage } from "@/lib/client-api";
-import { LIMITS, type OverrideAnswerRequest } from "@/lib/contracts";
+import {
+  LIMITS,
+  type OverrideAnswerRequest,
+  type OverrideAnswerResponse,
+} from "@/lib/contracts";
 import { Alert, Button, Field, Input, Textarea, formatScore } from "@/components/ui";
 
 /** What the arrows on the score field move by; any score in range is accepted. */
@@ -59,7 +63,7 @@ export function OverrideForm({
     setError(null);
     setSaved(false);
     try {
-      await api<unknown>(`/api/answers/${encodeURIComponent(answerId)}`, {
+      await api<OverrideAnswerResponse>(`/api/answers/${encodeURIComponent(answerId)}`, {
         method: "PATCH",
         body,
       });

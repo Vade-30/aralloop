@@ -8,6 +8,7 @@ import { toGeminiSchema } from "./gemini";
 import { toOpenAiSchema } from "./openai";
 import {
   AI_TIMEOUT_MS,
+  AI_TOTAL_BUDGET_MS,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_OPENAI_MODEL,
   generateJson,
@@ -771,6 +772,49 @@ describe("timeout", () => {
 
     expect(result.provider).toBe("gemini");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up within 55 seconds in total, so a 60-second route limit is never hit", async () => {
+    vi.useFakeTimers();
+    setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
+    fetchMock.mockImplementation(hangingFetch);
+
+    const pending = failure(askForQuiz());
+    // OpenAI gets its full 45 seconds; Gemini only what is left of the budget.
+    await vi.advanceTimersByTimeAsync(AI_TOTAL_BUDGET_MS - 1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(loggedLines()).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    const error = await pending;
+
+    expect(AI_TOTAL_BUDGET_MS).toBe(55_000);
+    expect(error.code).toBe("timeout");
+    expect(error.message).toContain("10 seconds");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not start another try once the time is used up", async () => {
+    vi.useFakeTimers();
+    setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
+    // Two slow OpenAI answers that are not JSON, then Gemini would be next.
+    fetchMock.mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, AI_TIMEOUT_MS - 1_000));
+      return openAiOk("not json");
+    });
+    fetchMock.mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 9_000));
+      return openAiOk("still not json");
+    });
+
+    const pending = failure(askForQuiz());
+    await vi.advanceTimersByTimeAsync(AI_TOTAL_BUDGET_MS);
+    const error = await pending;
+
+    // The two OpenAI tries used 53 of the 55 seconds. Two seconds are not
+    // enough for Gemini, so it is not called and the last error is reported.
+    expect(error.code).toBe("invalid_output");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requestAt(1).url).toBe(OPENAI_URL);
   });
 });
 

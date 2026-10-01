@@ -6,6 +6,7 @@ import { ActivityList } from "@/components/teacher/ActivityList";
 import { formatDate } from "@/components/teacher/format";
 import { GenerateActivityForm } from "@/components/teacher/GenerateActivityForm";
 import { Card, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { LESSON_PROMPT_MAX } from "@/lib/ai/prompts";
 import { getLesson, listActivities, listStudents } from "@/lib/db/repo";
 import { requireRole } from "@/lib/session";
 
@@ -48,6 +49,8 @@ export default async function LessonPage(props: PageProps<"/teacher/lessons/[les
         <p className="mb-4 mt-1 text-sm text-slate-600">
           The AI writes a draft from this lesson. Students see nothing until you review and
           publish it.
+          {lesson.content.length > LESSON_PROMPT_MAX &&
+            ` This lesson is long, so the AI reads about the first ${LESSON_PROMPT_MAX.toLocaleString("en-PH")} characters and the last part may not be covered.`}
         </p>
         <GenerateActivityForm lessonId={lesson.id} hasActivities={activities.length > 0} />
       </Card>

@@ -72,9 +72,13 @@ create table if not exists submissions (
   needs_review     boolean not null default false,
   summary          jsonb,
   summary_provider text check (summary_provider in ('openai', 'gemini', 'mock')),
+  grading_provider text check (grading_provider in ('openai', 'gemini', 'mock')),
   submitted_at     timestamptz not null default now(),
   unique (activity_id, student_id)
 );
+
+alter table submissions
+  add column if not exists grading_provider text check (grading_provider in ('openai', 'gemini', 'mock'));
 
 create table if not exists answers (
   id            text primary key,

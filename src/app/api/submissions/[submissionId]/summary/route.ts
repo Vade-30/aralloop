@@ -5,8 +5,7 @@
 //
 // Open to the teacher of the class and the parent of the student.
 
-import type { z } from "zod";
-import { writeParentSummary, type ResultItem } from "@/lib/ai";
+import { writeParentSummary } from "@/lib/ai";
 import { summaryRequest, type SummaryResponse } from "@/lib/contracts";
 import {
   getActivity,
@@ -16,43 +15,12 @@ import {
   getUser,
   setSubmissionSummary,
 } from "@/lib/db/repo";
-import { notFound, parseBody, requireUser, route } from "@/lib/http";
-import type { ActivityWithItems, SubmissionWithAnswers } from "@/lib/types";
+import { notFound, parseOptionalBody, requireUser, route } from "@/lib/http";
+import { toResultItems } from "@/lib/result-items";
 
 export const maxDuration = 60;
 
 type Context = { params: Promise<{ submissionId: string }> };
-
-/** Like parseBody, but a request with no body counts as {} (every field has a default). */
-async function parseOptionalBody<Schema extends z.ZodType>(
-  request: Request,
-  schema: Schema,
-): Promise<z.output<Schema>> {
-  const text = await request.clone().text();
-  if (text.trim() === "") return schema.parse({});
-  return parseBody(request, schema);
-}
-
-/** Every item of the activity with what the student answered and scored. */
-function toResultItems(
-  activity: ActivityWithItems,
-  submission: SubmissionWithAnswers,
-): ResultItem[] {
-  const answers = new Map(submission.answers.map((answer) => [answer.itemId, answer]));
-  return activity.items.map((item) => {
-    const answer = answers.get(item.id);
-    return {
-      position: item.position,
-      type: item.type,
-      question: item.question,
-      correctAnswer: item.answerKey,
-      response: answer?.response ?? "",
-      score: answer?.score ?? 0,
-      points: item.points,
-      feedback: answer?.feedback ?? "",
-    };
-  });
-}
 
 export const POST = route(
   async (request, { params }: Context): Promise<SummaryResponse> => {

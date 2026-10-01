@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { ACTIVITY_TYPE_LABELS, type ActivitySummary } from "@/lib/types";
 import { Badge } from "@/components/ui";
+import { plural } from "./format";
 
 export function activityHref(activity: Pick<ActivitySummary, "id" | "status">): string {
   return activity.status === "draft"
@@ -49,7 +50,10 @@ export function ActivityList({
                   </Badge>
                 )}
                 {activity.needsReviewCount > 0 && (
-                  <Badge tone="warning">{activity.needsReviewCount} to review</Badge>
+                  // Counts students' submissions; the results page counts answers.
+                  <Badge tone="warning">
+                    {plural(activity.needsReviewCount, "submission")} to review
+                  </Badge>
                 )}
               </span>
             </Link>

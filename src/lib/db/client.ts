@@ -33,7 +33,8 @@ export interface Db {
 
 async function openPglite(): Promise<Db> {
   const { PGlite } = await import("@electric-sql/pglite");
-  const dir = process.env.PGLITE_DIR ?? ".data/pglite";
+  // "||" so that an empty PGLITE_DIR= line in .env.local means the default too.
+  const dir = process.env.PGLITE_DIR?.trim() || ".data/pglite";
   let pg;
   if (dir === "memory") {
     pg = new PGlite();
@@ -43,7 +44,9 @@ async function openPglite(): Promise<Db> {
         "DATABASE_URL is not set. The embedded database cannot be used on Vercel; set DATABASE_URL to a PostgreSQL connection string.",
       );
     }
-    const resolved = path.resolve(dir);
+    // The folder is only known at run time. The comment tells the bundler not
+    // to trace the whole project into the server output because of it.
+    const resolved = path.resolve(/* turbopackIgnore: true */ dir);
     mkdirSync(path.dirname(resolved), { recursive: true });
     pg = new PGlite(resolved);
   }

@@ -89,6 +89,7 @@ export const POST = route(
         answers: graded.answers,
         totalScore: graded.totalScore,
         maxScore: graded.maxScore,
+        gradingProvider: graded.aiProvider,
       });
       return { submission, notice: graded.notice };
     } catch (error) {

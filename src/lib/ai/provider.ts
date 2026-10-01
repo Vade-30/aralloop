@@ -11,9 +11,10 @@
 //   OPENAI_MODEL, GEMINI_MODEL -> optional model ids (defaults are in openai.ts
 //                      and gemini.ts)
 //
-// This file owns everything the two providers share: the timeout, the retry
-// and fallback order, JSON parsing, validation and the log line. openai.ts and
-// gemini.ts only know how to build a request and read a response.
+// This file owns everything the two providers share: the timeouts (45 seconds
+// per try, 55 seconds for all tries together), the retry and fallback order,
+// JSON parsing, validation and the log line. openai.ts and gemini.ts only know
+// how to build a request and read a response.
 
 import { z } from "zod";
 import type { AiProviderName, AiResult, AiStatus } from "../types";
@@ -25,6 +26,18 @@ export { DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_MODEL };
 
 /** One provider gets this long to answer before the call counts as timed out. */
 export const AI_TIMEOUT_MS = 45_000;
+
+/**
+ * All tries of one generateJson call share this much time. The API routes that
+ * call the AI set maxDuration = 60, so a host that enforces it (Vercel) stops
+ * the request at 60 seconds with no JSON answer. Finishing by 55 seconds means
+ * the caller always gets either a result or an AiError it can handle: a clear
+ * message for the teacher, or "waiting for your teacher" for a submission.
+ */
+export const AI_TOTAL_BUDGET_MS = 55_000;
+
+/** A try is not started with less time than this left: it could not finish. */
+const MIN_TRY_MS = 3_000;
 
 /** The first try plus one retry, and only when the output was unusable. */
 const TRIES_PER_PROVIDER = 2;
@@ -183,11 +196,17 @@ export async function generateJson<T>(
   const order: RealProvider[] = [status.provider];
   if (isRealProvider(status.fallback)) order.push(status.fallback);
 
+  const deadline = Date.now() + AI_TOTAL_BUDGET_MS;
   let lastError = new AiError("unknown", "no provider was tried");
   for (const provider of order) {
     for (let attempt = 1; attempt <= TRIES_PER_PROVIDER; attempt++) {
+      // Out of time: report the last failure instead of starting a try that
+      // the host would cut off.
+      const timeLeft = deadline - Date.now();
+      if (timeLeft < MIN_TRY_MS) throw lastError;
       try {
-        const data = await callOnce(provider, options, jsonSchema);
+        const timeoutMs = Math.min(AI_TIMEOUT_MS, timeLeft);
+        const data = await callOnce(provider, options, jsonSchema, timeoutMs);
         return { data, provider, model: modelFor(provider) };
       } catch (error) {
         lastError = toAiError(error);
@@ -204,11 +223,12 @@ async function callOnce<T>(
   provider: RealProvider,
   options: GenerateJsonOptions<T>,
   jsonSchema: JsonSchema,
+  timeoutMs: number,
 ): Promise<T> {
   const model = modelFor(provider);
   const apiKey = env(PROVIDERS[provider].keyVar) ?? "";
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const started = Date.now();
   let usage: TokenUsage | null = null;
 
@@ -224,7 +244,7 @@ async function callOnce<T>(
         maxOutputTokens: options.maxOutputTokens,
         temperature: options.temperature,
       },
-      createSend(controller.signal, apiKey),
+      createSend(controller.signal, apiKey, timeoutMs),
     );
     usage = reply.usage;
     if (reply.text === null) {
@@ -242,7 +262,7 @@ async function callOnce<T>(
   }
 }
 
-function createSend(signal: AbortSignal, apiKey: string): HttpSend {
+function createSend(signal: AbortSignal, apiKey: string, timeoutMs: number): HttpSend {
   return async ({ url, headers, body }) => {
     let status: number;
     let text: string;
@@ -258,7 +278,7 @@ function createSend(signal: AbortSignal, apiKey: string): HttpSend {
     } catch (error) {
       // Only our own timer aborts this signal.
       if (signal.aborted) {
-        throw new AiError("timeout", `no answer after ${AI_TIMEOUT_MS / 1000} seconds`);
+        throw new AiError("timeout", `no answer after ${Math.round(timeoutMs / 1000)} seconds`);
       }
       throw new AiError("network", describeFailure(error));
     }

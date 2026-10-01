@@ -124,7 +124,12 @@ export const PATCH = route(
       instructions: body.instructions,
       items,
     });
-    if (!activity) throw notFound("That activity");
+    if (!activity) {
+      // It was a draft a moment ago, so it was published or deleted meanwhile.
+      throw conflict(
+        "This activity was published or deleted while you were editing it. Reload the page.",
+      );
+    }
     return { activity };
   },
 );

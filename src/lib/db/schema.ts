@@ -3,6 +3,13 @@
 //
 // The same SQL runs on the embedded database used for local development
 // (PGlite) and on a hosted PostgreSQL such as Supabase.
+//
+// Keep SQL comments and semicolons inside text out of it: client.ts splits it
+// on ";" and db/schema.sql is compared with it line by line.
+//
+// The "alter table submissions" statement adds grading_provider to a database
+// that was created before that column existed. On a new database it does
+// nothing, because "create table" above it already has the column.
 
 export const SCHEMA_SQL = `
 create table if not exists classes (
@@ -67,9 +74,13 @@ create table if not exists submissions (
   needs_review     boolean not null default false,
   summary          jsonb,
   summary_provider text check (summary_provider in ('openai', 'gemini', 'mock')),
+  grading_provider text check (grading_provider in ('openai', 'gemini', 'mock')),
   submitted_at     timestamptz not null default now(),
   unique (activity_id, student_id)
 );
+
+alter table submissions
+  add column if not exists grading_provider text check (grading_provider in ('openai', 'gemini', 'mock'));
 
 create table if not exists answers (
   id            text primary key,

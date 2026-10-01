@@ -1,7 +1,7 @@
 // PATCH /api/answers/[answerId] — the teacher overrides one answer's score
 // (and optionally its feedback). The teacher has the final say on every grade.
 
-import { overrideAnswerRequest } from "@/lib/contracts";
+import { overrideAnswerRequest, type OverrideAnswerResponse } from "@/lib/contracts";
 import {
   getActivity,
   getAnswer,
@@ -9,13 +9,7 @@ import {
   overrideAnswer,
 } from "@/lib/db/repo";
 import { badRequest, notFound, parseBody, requireUser, route } from "@/lib/http";
-import type { SubmissionWithAnswers } from "@/lib/types";
-
 type Context = { params: Promise<{ answerId: string }> };
-
-interface OverrideAnswerResponse {
-  submission: SubmissionWithAnswers;
-}
 
 export const PATCH = route(
   async (request, { params }: Context): Promise<OverrideAnswerResponse> => {

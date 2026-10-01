@@ -111,6 +111,7 @@ interface SubmissionRow {
   needs_review: boolean;
   summary: unknown;
   summary_provider: AiProviderName | null;
+  grading_provider: AiProviderName | null;
   submitted_at: Timestamp;
 }
 
@@ -207,6 +208,7 @@ function toSubmission(row: SubmissionRow): Submission {
     needsReview: row.needs_review,
     summary: fromJsonb<ParentSummary>(row.summary),
     summaryProvider: row.summary_provider,
+    gradingProvider: row.grading_provider ?? null,
     submittedAt: toIso(row.submitted_at),
   };
 }
@@ -514,7 +516,11 @@ export async function listActivities(
 /**
  * Replaces title, instructions and the whole item list (positions follow the
  * array order), and recomputes the activity type from the items: one item
- * type throughout, otherwise "mixed". Returns null if the activity is missing.
+ * type throughout, otherwise "mixed".
+ *
+ * Drafts only. Returns null, and changes nothing, if the activity is missing
+ * or already published: answers belong to items, so replacing the items of a
+ * published activity would delete what students handed in.
  */
 export async function updateActivity(
   id: string,
@@ -528,6 +534,7 @@ export async function updateActivity(
               instructions = $3,
               type = coalesce($4::text, type)
         where id = $1
+          and status = 'draft'
         returning id`,
       [id, input.title, input.instructions, typeFromItems(input.items)],
     );
@@ -607,14 +614,17 @@ export async function createSubmission(input: {
   answers: NewAnswer[];
   totalScore: number;
   maxScore: number;
+  /** The AI service that graded the free-text answers, if one did. */
+  gradingProvider?: AiProviderName | null;
 }): Promise<SubmissionWithAnswers> {
   const id = crypto.randomUUID();
   return transaction(async (q) => {
     try {
       await q(
         `insert into submissions
-           (id, activity_id, student_id, total_score, max_score, needs_review)
-         values ($1, $2, $3, $4, $5, $6)`,
+           (id, activity_id, student_id, total_score, max_score, needs_review,
+            grading_provider)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
         [
           id,
           input.activityId,
@@ -622,6 +632,7 @@ export async function createSubmission(input: {
           input.totalScore,
           input.maxScore,
           input.answers.some((answer) => answer.needsReview),
+          input.gradingProvider ?? null,
         ],
       );
     } catch (error) {

@@ -373,7 +373,7 @@ const SEED_ACTIVITIES: SeedActivity[] = [
         summary: MIGUEL_PLANT_CELL_SUMMARY,
         answers: [
           byCode("Cell membrane", 1, "Correct."),
-          byCode("Mitochondria", 0, "The correct answer is Chloroplasts."),
+          byCode("Mitochondria", 0, 'The correct answer is "Chloroplasts".'),
           byCode("False", 1, "Correct."),
           byCode("nucleus", 2, "Correct."),
           byAi(
@@ -396,9 +396,9 @@ const SEED_ACTIVITIES: SeedActivity[] = [
         submittedAt: "2026-09-22T11:42:00.000Z",
         summary: null,
         answers: [
-          byCode("Cell wall", 0, "The correct answer is Cell membrane."),
+          byCode("Cell wall", 0, 'The correct answer is "Cell membrane".'),
           byCode("Chloroplasts", 1, "Correct."),
-          byCode("True", 0, "The correct answer is False."),
+          byCode("True", 0, 'The correct answer is "False".'),
           byCode("Nucleus", 2, "Correct."),
           byAi(
             "mitocondria",
@@ -677,6 +677,7 @@ async function insertSampleData(query: QueryFn): Promise<void> {
       "needs_review",
       "summary::jsonb",
       "summary_provider",
+      "grading_provider",
       "submitted_at::timestamptz",
     ],
     SEED_ACTIVITIES.flatMap((activity) => {
@@ -694,6 +695,9 @@ async function insertSampleData(query: QueryFn): Promise<void> {
           submission.answers.some((answer) => answer.needsReview),
           toJsonb(submission.summary),
           submission.summary ? "mock" : null,
+          // The sample grades were written by hand, so they are labelled as
+          // sample output and never as the work of a real AI service.
+          submission.answers.some((answer) => answer.gradedBy === "ai") ? "mock" : null,
           submission.submittedAt,
         ];
       });

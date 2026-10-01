@@ -3,6 +3,7 @@
 //   export const POST = route(async (request) => {
 //     const user = await requireUser("teacher");
 //     const body = await parseBody(request, createLessonRequest);
+//     (parseOptionalBody for a route that also accepts no body at all)
 //     ...
 //     return { lesson };            // sent as JSON with status 200
 //   });
@@ -86,6 +87,34 @@ export async function parseBody<Schema extends z.ZodType>(
   } catch {
     throw badRequest("The request body is not valid JSON.");
   }
+  return validate(raw, schema);
+}
+
+/**
+ * Like parseBody, but a request with no body counts as {}. For routes whose
+ * body has a default for every field.
+ */
+export async function parseOptionalBody<Schema extends z.ZodType>(
+  request: Request,
+  schema: Schema,
+): Promise<z.output<Schema>> {
+  let text: string;
+  try {
+    text = await request.text();
+  } catch {
+    throw badRequest("The request body could not be read.");
+  }
+  if (text.trim() === "") return validate({}, schema);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw badRequest("The request body is not valid JSON.");
+  }
+  return validate(raw, schema);
+}
+
+function validate<Schema extends z.ZodType>(raw: unknown, schema: Schema): z.output<Schema> {
   const result = schema.safeParse(raw);
   if (!result.success) {
     const issue = result.error.issues[0];

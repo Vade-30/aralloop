@@ -50,6 +50,7 @@ function submission(studentId: string, answers: Answer[], maxScore: number): Sub
     needsReview: answers.some((entry) => entry.needsReview),
     summary: null,
     summaryProvider: null,
+    gradingProvider: null,
     submittedAt: "2026-10-02T01:00:00.000Z",
     answers,
   };

@@ -61,7 +61,7 @@ export function ResultItem({
   item: Item;
   /** Undefined if nothing was stored for this item. */
   answer: Answer | undefined;
-  /** The AI service in use, for the "Graded by AI" label. */
+  /** The AI service that graded this submission, for the "Graded by AI" label. */
   provider: AiProviderName;
   /** "Your answer" for the student, "{name}'s answer" for a parent. */
   answerLabel: string;

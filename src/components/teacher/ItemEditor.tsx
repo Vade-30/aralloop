@@ -237,7 +237,7 @@ export function ItemEditor({
           <Field
             label="Rubric"
             htmlFor={`${id}-rubric`}
-            hint="What an answer must include for full points. The AI grades against this."
+            hint="What an answer must include for full points. The AI grades against this. If you leave it empty, the model answer is used."
           >
             <Textarea
               id={`${id}-rubric`}

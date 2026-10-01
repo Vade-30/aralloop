@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { LESSON_PROMPT_MAX } from "@/lib/ai/prompts";
 import { api, errorMessage } from "@/lib/client-api";
 import {
   LIMITS,
@@ -47,6 +48,8 @@ export function NewLessonForm() {
   const length = content.trim().length;
   const tooShort = length < LIMITS.lessonContentMin;
   const tooLong = length > LIMITS.lessonContentMax;
+  /** Longer than what the AI is given when it writes the activity. */
+  const partlyRead = !tooLong && length > LESSON_PROMPT_MAX;
   const lessonLocked = working || uploading || savedLessonId !== null;
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
@@ -174,6 +177,13 @@ export function NewLessonForm() {
           >
             {count.format(length)} / {count.format(LIMITS.lessonContentMax)} characters
           </p>
+          {partlyRead && (
+            <p className="mt-1 text-xs text-amber-800">
+              This lesson is long. The AI writes the activity from about the first{" "}
+              {count.format(LESSON_PROMPT_MAX)} characters, so the last part may not be covered.
+              Split a long lesson in two if you want questions on all of it.
+            </p>
+          )}
         </Field>
 
         <div>

@@ -7,7 +7,7 @@
 // Open to the student who owns the submission, that student's parent, and the
 // teacher of the class.
 
-import { answerTutorQuestion, type ResultItem } from "@/lib/ai";
+import { answerTutorQuestion } from "@/lib/ai";
 import { askRequest, type AskResponse } from "@/lib/contracts";
 import {
   getActivity,
@@ -17,32 +17,11 @@ import {
   getUser,
 } from "@/lib/db/repo";
 import { notFound, parseBody, requireUser, route } from "@/lib/http";
-import type { ActivityWithItems, SubmissionWithAnswers } from "@/lib/types";
+import { toResultItems } from "@/lib/result-items";
 
 export const maxDuration = 60;
 
 type Context = { params: Promise<{ submissionId: string }> };
-
-/** Every item of the activity with what the student answered and scored. */
-function toResultItems(
-  activity: ActivityWithItems,
-  submission: SubmissionWithAnswers,
-): ResultItem[] {
-  const answers = new Map(submission.answers.map((answer) => [answer.itemId, answer]));
-  return activity.items.map((item) => {
-    const answer = answers.get(item.id);
-    return {
-      position: item.position,
-      type: item.type,
-      question: item.question,
-      correctAnswer: item.answerKey,
-      response: answer?.response ?? "",
-      score: answer?.score ?? 0,
-      points: item.points,
-      feedback: answer?.feedback ?? "",
-    };
-  });
-}
 
 export const POST = route(
   async (request, { params }: Context): Promise<AskResponse> => {

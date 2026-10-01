@@ -7,6 +7,7 @@
 
 import { gradeFreeText } from "./ai";
 import type { FreeTextAnswer, FreeTextGrade } from "./ai";
+import { WAITING_FEEDBACK } from "./ai/grade";
 import { LIMITS } from "./contracts";
 import type {
   ActivityWithItems,
@@ -21,7 +22,8 @@ export const REVIEW_CONFIDENCE_THRESHOLD = 0.7;
 
 const LEADING_ARTICLES = new Set(["the", "a", "an", "ang", "si", "mga"]);
 
-const PENDING_FEEDBACK = "This answer is waiting for your teacher to check.";
+// The same sentence gradeFreeText uses for an answer the model left out.
+const PENDING_FEEDBACK = WAITING_FEEDBACK;
 const PENDING_NOTICE =
   "Some of your answers could not be checked automatically. Your teacher will review them, so your score may change.";
 
@@ -174,6 +176,10 @@ function aiAnswer(
   grade: FreeTextGrade | undefined,
 ): NewAnswer | null {
   if (!grade || !Number.isFinite(grade.score)) return null;
+  // gradeFreeText always returns one entry per answer. For an answer the model
+  // left out, the entry is this placeholder, not a grade: it must not be stored
+  // or labelled as graded by AI.
+  if (grade.confidence === 0 && grade.feedback === WAITING_FEEDBACK) return null;
 
   const step = item.type === "short_answer" ? 0.5 : 1;
   const rounded = Math.round(grade.score / step) * step;

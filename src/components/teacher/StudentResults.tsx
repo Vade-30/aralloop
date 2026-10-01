@@ -131,8 +131,9 @@ export function StudentResults({
   submissions: SubmissionWithAnswers[];
   items: Item[];
   /**
-   * The AI service in use now. Answers do not record which service graded
-   * them, so this decides whether AI grades are labelled as sample output.
+   * The AI service in use now. Only used for a submission that has no
+   * recorded grading service; otherwise AI grades are labelled by the service
+   * that really graded them (submission.gradingProvider).
    */
   aiProvider: AiProviderName;
 }) {
@@ -178,7 +179,12 @@ export function StudentResults({
             >
               <ul className="space-y-3">
                 {rows.map(({ answer, item }) => (
-                  <AnswerCard key={answer.id} answer={answer} item={item} aiProvider={aiProvider} />
+                  <AnswerCard
+                    key={answer.id}
+                    answer={answer}
+                    item={item}
+                    aiProvider={submission.gradingProvider ?? aiProvider}
+                  />
                 ))}
               </ul>
             </StudentDetails>

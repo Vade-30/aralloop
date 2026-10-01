@@ -160,6 +160,13 @@ export interface Submission {
   needsReview: boolean;
   summary: ParentSummary | null;
   summaryProvider: AiProviderName | null;
+  /**
+   * The AI service that graded this submission's free-text answers ("mock" in
+   * offline sample mode), so they are labelled by what really graded them and
+   * not by whatever is configured when the page is opened. Null if no answer
+   * needed the AI or the AI was unavailable.
+   */
+  gradingProvider: AiProviderName | null;
   submittedAt: string;
 }
 
