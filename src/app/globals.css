@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
-/* Blue and yellow palette. Use as bg-brand-600, text-brand-700, bg-accent-400 ... */
+/*
+ * "Bold and playful" look: a deep blue header band with big rounded type,
+ * yellow call-to-action buttons, and chunky white cards with a raised edge.
+ * Use the tokens as bg-brand-600, text-ink, border-line, shadow-edge ...
+ */
 @theme inline {
-  /* System fonts: nothing to download, so the app also starts offline. */
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Bundled with the app (see layout.tsx), so nothing is downloaded at run time. */
+  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+  --font-display: "Baloo 2 Variable", "Nunito Variable", ui-sans-serif, system-ui, sans-serif;
 
-  /* Blue: buttons, links, the header. White text is readable from 600 up. */
+  /* Blue: the header band, links, selected states. White text is readable from 600 up. */
   --color-brand-50: #eef4ff;
   --color-brand-100: #dbe7fe;
   --color-brand-200: #bfd3fe;
@@ -17,23 +22,79 @@
   --color-brand-800: #1e32a8;
   --color-brand-900: #1e3084;
 
-  /* Yellow: highlights only. Always pair it with dark text, never white. */
+  /* Yellow: main buttons and highlights. Always pair it with dark text, never white. */
   --color-accent-50: #fffbea;
   --color-accent-100: #fff3c4;
   --color-accent-200: #fce588;
   --color-accent-300: #fadb5f;
   --color-accent-400: #f7c948;
   --color-accent-500: #f0b429;
-  --color-accent-600: #de911d;
+  --color-accent-600: #c99a12;
+
+  --color-ink: #16204a; /* main text */
+  --color-muted: #5a6585; /* supporting text; 4.5:1 or better on white and canvas */
+  --color-line: #e3e9f8; /* card borders and their raised edge */
+  --color-canvas: #f7f9ff; /* page background */
+
+  /* The raised edge under cards and buttons: a hard shadow with no blur. */
+  --shadow-edge: 0 5px 0 #e3e9f8;
+  --shadow-edge-sm: 0 3px 0 #e3e9f8;
+  --shadow-edge-accent: 0 5px 0 #c99a12;
+  --shadow-edge-brand: 0 5px 0 #162a94;
+  --shadow-edge-danger: 0 5px 0 #991b1b;
+
+  /* Entrance motion. Use as animate-rise, animate-pop; delay with [animation-delay:120ms]. */
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pop: pop 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-ring: ring 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-dot: dot 1s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.9); }
+  60% { opacity: 1; transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+/* ScoreRing: the stroke draws itself from empty to its final length. */
+@keyframes ring {
+  from { stroke-dashoffset: var(--ring-length); }
+}
+/* Typing indicator dots. */
+@keyframes dot {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
 }
 
 body {
-  background: var(--color-slate-50);
-  color: var(--color-slate-900);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  /* The header band is as wide as the window, scrollbar included. */
+  overflow-x: clip;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
 }
 
 /* Keyboard focus is always visible. */
 :focus-visible {
-  outline: 2px solid var(--color-brand-600);
+  outline: 3px solid var(--color-brand-500);
   outline-offset: 2px;
+}
+
+/* People who ask for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
