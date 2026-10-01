@@ -9,7 +9,7 @@
 // Optional: OPENAI_REASONING_EFFORT (default "low"). Set it to "none" for the
 // fastest and cheapest calls; only then does the API accept a temperature.
 
-import { AiError, type AiErrorCode } from "./errors";
+import { AiError, isTransientStatus, type AiErrorCode } from "./errors";
 import type {
   HttpReply,
   HttpSend,
@@ -69,7 +69,9 @@ function reasoningEffort(): string {
 
 function buildBody(call: ProviderCall, schema: JsonSchema, extras: Extras): JsonSchema {
   const effort = reasoningEffort();
-  const reasons = extras.reasoning && effort !== "none";
+  // Not tied to extras.reasoning: when the API rejected the setting and it was
+  // dropped, the model still reasons at its own default and needs the room.
+  const reasons = effort !== "none";
 
   const body: JsonSchema = {
     model: call.model,
@@ -293,6 +295,10 @@ function readUsage(usage: unknown): TokenUsage | null {
 // credit_balance_exhausted or project_spend_limit_exceeded.
 const QUOTA_PATTERN = /quota|rate_limit|credit|spend_limit|usage_limit|slow_down/;
 
+// The ones among them that waiting does not fix: the account has no credit left
+// or has reached a limit it set itself. Asking again would only fail again.
+const BILLING_PATTERN = /quota|credit|spend_limit|usage_limit|billing/;
+
 function httpError(reply: HttpReply): AiError {
   const error = isRecord(reply.json) && isRecord(reply.json.error) ? reply.json.error : null;
   const kind = `${asString(error?.type)} ${asString(error?.code)}`.trim();
@@ -307,7 +313,11 @@ function httpError(reply: HttpReply): AiError {
     return new AiError(code, `OpenAI HTTP ${reply.status}${kind ? ` (${kind})` : ""}`);
   }
   const message = asString(error?.message) || reply.text;
-  return new AiError(code, `OpenAI HTTP ${reply.status}: ${shorten(message)}`);
+  return new AiError(
+    code,
+    `OpenAI HTTP ${reply.status}: ${shorten(message)}`,
+    isTransientStatus(reply.status) && !BILLING_PATTERN.test(kind),
+  );
 }
 
 // --- Helpers -----------------------------------------------------------------

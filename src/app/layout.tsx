@@ -20,8 +20,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AppHeader />
         {children}
         <footer className="mx-auto w-full max-w-3xl px-4 py-6 text-xs text-slate-500">
-          Prototype with sample data. Activities, grades and summaries marked with ✦
-          are AI-generated and reviewed by the teacher.
+          Prototype with sample data. AI-written content is labelled. The teacher reviews
+          every activity before it is published and can change any score.
         </footer>
       </body>
     </html>

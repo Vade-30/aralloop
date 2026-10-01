@@ -12,9 +12,10 @@
 //                      and gemini.ts)
 //
 // This file owns everything the two providers share: the timeouts (45 seconds
-// per try, 55 seconds for all tries together), the retry and fallback order,
-// JSON parsing, validation and the log line. openai.ts and gemini.ts only know
-// how to build a request and read a response.
+// per try, 30 for the first provider when there is a fallback, 55 seconds for
+// all tries together), the retry and fallback order, JSON parsing, validation
+// and the log line. openai.ts and gemini.ts only know how to build a request
+// and read a response.
 
 import { z } from "zod";
 import type { AiProviderName, AiResult, AiStatus } from "../types";
@@ -28,6 +29,13 @@ export { DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_MODEL };
 export const AI_TIMEOUT_MS = 45_000;
 
 /**
+ * The first provider's limit per try when a fallback exists. With the full 45
+ * seconds, a slow first provider would leave the fallback only about 10 of the
+ * 55 seconds below; this leaves it about 25.
+ */
+export const AI_TIMEOUT_WITH_FALLBACK_MS = 30_000;
+
+/**
  * All tries of one generateJson call share this much time. The API routes that
  * call the AI set maxDuration = 60, so a host that enforces it (Vercel) stops
  * the request at 60 seconds with no JSON answer. Finishing by 55 seconds means
@@ -39,8 +47,17 @@ export const AI_TOTAL_BUDGET_MS = 55_000;
 /** A try is not started with less time than this left: it could not finish. */
 const MIN_TRY_MS = 3_000;
 
-/** The first try plus one retry, and only when the output was unusable. */
+/**
+ * The first try plus one retry. The retry is made only when the output was
+ * unusable, or when the failure was a passing one (see AiError.transient).
+ */
 const TRIES_PER_PROVIDER = 2;
+
+/**
+ * How long to wait before asking a busy service again (HTTP 429, 408 or 5xx).
+ * Short on purpose: the wait comes out of the 55-second budget.
+ */
+export const AI_RETRY_WAIT_MS = 1_500;
 
 // --- Shared with openai.ts and gemini.ts --------------------------------------
 
@@ -174,8 +191,9 @@ export interface GenerateJsonOptions<T> {
 
 /**
  * Asks the model for JSON matching the schema. Retries once on invalid
- * output, then tries the fallback provider. Throws AiError when everything
- * failed. Must not be called when getAiStatus().provider is "mock".
+ * output, and once after a short wait when the service was busy or had an
+ * internal error, then tries the fallback provider. Throws AiError when
+ * everything failed. Must not be called when getAiStatus().provider is "mock".
  */
 export async function generateJson<T>(
   options: GenerateJsonOptions<T>,
@@ -198,21 +216,31 @@ export async function generateJson<T>(
 
   const deadline = Date.now() + AI_TOTAL_BUDGET_MS;
   let lastError = new AiError("unknown", "no provider was tried");
-  for (const provider of order) {
+  for (const [index, provider] of order.entries()) {
+    // Only the first of two providers is cut short; a provider with nothing
+    // after it keeps the full time.
+    const tryLimit =
+      index === 0 && order.length > 1 ? AI_TIMEOUT_WITH_FALLBACK_MS : AI_TIMEOUT_MS;
     for (let attempt = 1; attempt <= TRIES_PER_PROVIDER; attempt++) {
       // Out of time: report the last failure instead of starting a try that
       // the host would cut off.
       const timeLeft = deadline - Date.now();
       if (timeLeft < MIN_TRY_MS) throw lastError;
       try {
-        const timeoutMs = Math.min(AI_TIMEOUT_MS, timeLeft);
+        const timeoutMs = Math.min(tryLimit, timeLeft);
         const data = await callOnce(provider, options, jsonSchema, timeoutMs);
         return { data, provider, model: modelFor(provider) };
       } catch (error) {
         lastError = toAiError(error);
-        // A second try can fix a badly shaped answer. It cannot fix a rejected
-        // key, an empty balance or a dead connection, so those move on.
-        if (lastError.code !== "invalid_output") break;
+        // A second try can fix a badly shaped answer straight away.
+        if (lastError.code === "invalid_output") continue;
+        // It cannot fix a rejected key, an empty balance or a dead connection,
+        // so those move on to the next provider.
+        if (!lastError.transient || attempt === TRIES_PER_PROVIDER) break;
+        // An overloaded or rate-limited service often answers a moment later.
+        // Wait, but only if a full try still fits in the time that is left.
+        if (deadline - Date.now() < AI_RETRY_WAIT_MS + MIN_TRY_MS) break;
+        await new Promise((resolve) => setTimeout(resolve, AI_RETRY_WAIT_MS));
       }
     }
   }

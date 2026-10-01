@@ -11,6 +11,7 @@ import { ResultItem } from "@/components/student/ResultItem";
 import { questionsLabel } from "@/components/student/labels";
 import { TutorChat } from "@/components/TutorChat";
 import {
+  AiLabel,
   Alert,
   Badge,
   Card,
@@ -77,6 +78,8 @@ export default async function StudentActivityPage(
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
             <Badge tone="brand">{ACTIVITY_TYPE_LABELS[activity.type]}</Badge>
             <span>{questionsLabel(publicItems.length)}</span>
+            {/* Only the provider name goes in: nothing from the answer key. */}
+            <AiLabel provider={activity.aiProvider}>AI-drafted · reviewed by teacher</AiLabel>
           </div>
           {activity.instructions && (
             <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">
@@ -97,7 +100,16 @@ export default async function StudentActivityPage(
 
   return (
     <Page>
-      <PageHeader title={activity.title} description={description} back={BACK} />
+      <PageHeader
+        title={activity.title}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            {description}
+            <AiLabel provider={activity.aiProvider}>AI-drafted · reviewed by teacher</AiLabel>
+          </span>
+        }
+        back={BACK}
+      />
 
       <Card className="mb-6">
         <div className="flex flex-wrap items-center gap-3">

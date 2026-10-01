@@ -51,8 +51,8 @@ export function ItemAnalysis({
         ))}
       </ol>
       <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-500">
-        Counted from the scores, without AI. Answers still waiting for your review count as not
-        earned yet.
+        Counted from the current scores, without AI. An answer that has not been graded yet counts
+        as not earned.
       </p>
     </Card>
   );

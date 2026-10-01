@@ -42,11 +42,19 @@ export function formatScore(score: number): string {
 }
 
 /**
- * Removes anything shaped like one of our block tags, so that untrusted text
- * cannot close its block early and continue as if it were the prompt.
+ * The block names the prompts use as delimiters: dataBlock() in the task files
+ * and the <answers> block in grade.ts. A new block name must be added here.
+ */
+const BLOCK_TAGS = ["lesson", "results", "conversation", "question", "answers"];
+const BLOCK_TAG_PATTERN = new RegExp(`<\\s*/?\\s*(?:${BLOCK_TAGS.join("|")})\\s*>`, "gi");
+
+/**
+ * Removes our block tags, so that untrusted text cannot close its block early
+ * and continue as if it were the prompt. Only those names are removed: lesson
+ * text such as "x < 5 and y > 3" is left as it is.
  */
 export function stripTags(text: string): string {
-  return text.replace(/<\/?\s*[a-z_]{2,30}\s*>/gi, " ");
+  return text.replace(BLOCK_TAG_PATTERN, " ");
 }
 
 /** Wraps untrusted text in a named block. */

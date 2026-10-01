@@ -209,7 +209,7 @@ export function NewLessonForm() {
             </p>
           )}
           {uploadNote && !uploading && (
-            <Alert tone="info" className="mt-2">
+            <Alert tone="info" className="mt-2 break-words">
               {uploadNote}
             </Alert>
           )}

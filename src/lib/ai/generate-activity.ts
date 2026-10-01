@@ -254,7 +254,7 @@ function defaultInstructions(type: ActivityType): string {
     case "short_answer":
       return "Answer each question in one to three sentences, using your own words.";
     default:
-      return "Read each item carefully and answer it. Use your own words for the short answers.";
+      return "Read each question carefully and answer it. Use your own words for the short answers.";
   }
 }
 

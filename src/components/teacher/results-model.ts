@@ -65,9 +65,10 @@ export interface AnswerRow {
 }
 
 /**
- * A student's answers paired with their items: the ones waiting for review
- * first, then in the order of the activity. Answers whose item no longer
- * exists are skipped.
+ * A student's answers paired with their items, in the order of the activity.
+ * Answers waiting for review are not moved to the top: a card would jump down
+ * the list the moment its score is saved. Answers whose item no longer exists
+ * are skipped.
  */
 export function answerRows(submission: SubmissionWithAnswers, items: Item[]): AnswerRow[] {
   const byId = new Map(items.map((item) => [item.id, item]));
@@ -76,11 +77,7 @@ export function answerRows(submission: SubmissionWithAnswers, items: Item[]): An
     const item = byId.get(answer.itemId);
     if (item) rows.push({ answer, item });
   }
-  return rows.sort(
-    (a, b) =>
-      Number(b.answer.needsReview) - Number(a.answer.needsReview) ||
-      a.item.position - b.item.position,
-  );
+  return rows.sort((a, b) => a.item.position - b.item.position);
 }
 
 /** 0.826 -> "83%". */

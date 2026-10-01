@@ -7,7 +7,9 @@ import { AiError } from "./errors";
 import { toGeminiSchema } from "./gemini";
 import { toOpenAiSchema } from "./openai";
 import {
+  AI_RETRY_WAIT_MS,
   AI_TIMEOUT_MS,
+  AI_TIMEOUT_WITH_FALLBACK_MS,
   AI_TOTAL_BUDGET_MS,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_OPENAI_MODEL,
@@ -146,6 +148,22 @@ async function failure(promise: Promise<unknown>): Promise<AiError> {
 
 function loggedLines(): string[] {
   return infoSpy.mock.calls.map((call) => String(call[0]));
+}
+
+/**
+ * Runs a call to its end without really waiting before a retry: the clock is
+ * faked and moved forward until the call has finished.
+ */
+async function skipRetryWaits<T>(start: () => Promise<T>): Promise<T> {
+  vi.useFakeTimers();
+  const pending = start();
+  let settled = false;
+  const mark = () => {
+    settled = true;
+  };
+  void pending.then(mark, mark);
+  while (!settled) await vi.advanceTimersByTimeAsync(AI_RETRY_WAIT_MS);
+  return pending;
 }
 
 describe("getAiStatus", () => {
@@ -322,7 +340,10 @@ describe("generateJson with OpenAI", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const second = requestAt(1).body;
     expect(second).not.toHaveProperty("reasoning");
-    expect(second).toMatchObject({ temperature: 0.2, max_output_tokens: 500 });
+    // The model now reasons at its own default, so the room for it stays and
+    // no temperature is sent.
+    expect(second).toMatchObject({ max_output_tokens: 4_500 });
+    expect(second).not.toHaveProperty("temperature");
   });
 
   it("wraps a schema whose root is not an object and unwraps the answer", async () => {
@@ -404,9 +425,28 @@ describe("generateJson with Gemini", () => {
         },
         // The caller's 500 plus room for hidden thinking.
         maxOutputTokens: 2_500,
-        temperature: 0.2,
+        // No temperature: Gemini 3 models are meant to keep their default.
       },
     });
+  });
+
+  it.each(["gemini-3-pro", "models/gemini-3.5-flash-lite", "gemini-flash-latest"])(
+    "leaves the temperature at the model's default for %s",
+    async (model) => {
+      setEnv({ GEMINI_MODEL: model });
+      fetchMock.mockResolvedValueOnce(geminiOk(QUIZ));
+      await askForQuiz();
+
+      expect(requestAt(0).body.generationConfig).not.toHaveProperty("temperature");
+    },
+  );
+
+  it("sends the temperature to an older model set through GEMINI_MODEL", async () => {
+    setEnv({ GEMINI_MODEL: "gemini-2.5-flash" });
+    fetchMock.mockResolvedValueOnce(geminiOk(QUIZ));
+    await askForQuiz();
+
+    expect(requestAt(0).body.generationConfig).toMatchObject({ temperature: 0.2 });
   });
 
   it("ignores thought parts and logs thinking tokens as output", async () => {
@@ -559,32 +599,117 @@ describe("retry on invalid output", () => {
   });
 });
 
+describe("retry after a passing failure", () => {
+  const overloaded = () =>
+    geminiError(503, {
+      message: "The model is overloaded. Please try again later.",
+      status: "UNAVAILABLE",
+    });
+
+  it("waits a moment, asks again and succeeds when Gemini was overloaded", async () => {
+    vi.useFakeTimers();
+    setEnv({ GEMINI_API_KEY: GEMINI_KEY });
+    fetchMock.mockResolvedValueOnce(overloaded()).mockResolvedValueOnce(geminiOk(QUIZ));
+
+    const pending = askForQuiz();
+    await vi.advanceTimersByTimeAsync(AI_RETRY_WAIT_MS - 1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await pending;
+
+    expect(result).toEqual({ data: QUIZ, provider: "gemini", model: DEFAULT_GEMINI_MODEL });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(loggedLines().map((line) => /result=(\w+)/.exec(line)?.[1])).toEqual(["unknown", "ok"]);
+  });
+
+  it("stays on OpenAI when the retry after a 500 works", async () => {
+    setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
+    fetchMock
+      .mockResolvedValueOnce(openAiError(500, { message: "The server had an error." }))
+      .mockResolvedValueOnce(openAiOk(QUIZ));
+
+    const result = await skipRetryWaits(askForQuiz);
+
+    expect(result.provider).toBe("openai");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks only twice, then reports the failure", async () => {
+    setEnv({ GEMINI_API_KEY: GEMINI_KEY });
+    fetchMock.mockImplementation(async () => overloaded());
+
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
+
+    expect(error.code).toBe("unknown");
+    expect(error.message).toContain("503");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not ask again when the request itself is wrong", async () => {
+    setEnv({ GEMINI_API_KEY: GEMINI_KEY });
+    fetchMock.mockImplementation(async () =>
+      geminiError(404, { message: "models/nope is not found.", status: "NOT_FOUND" }),
+    );
+
+    await failure(askForQuiz());
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("fallback from OpenAI to Gemini", () => {
   beforeEach(() => setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY }));
 
-  it("goes straight to Gemini on a 500", async () => {
+  it("asks OpenAI once more after a 500, then goes to Gemini", async () => {
+    const serverError = () =>
+      openAiError(500, { message: "The server had an error.", type: "server_error" });
     fetchMock
-      .mockResolvedValueOnce(
-        openAiError(500, { message: "The server had an error.", type: "server_error" }),
-      )
+      .mockResolvedValueOnce(serverError())
+      .mockResolvedValueOnce(serverError())
       .mockResolvedValueOnce(geminiOk(QUIZ));
 
-    const result = await askForQuiz();
+    const result = await skipRetryWaits(askForQuiz);
 
     expect(result).toEqual({ data: QUIZ, provider: "gemini", model: DEFAULT_GEMINI_MODEL });
-    // One OpenAI call (no retry) and one Gemini call.
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(requestAt(0).url).toBe(OPENAI_URL);
-    expect(requestAt(1).url).toBe(GEMINI_URL);
+    // Two OpenAI calls (one retry after a short wait) and one Gemini call.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect([0, 1, 2].map((index) => requestAt(index).url)).toEqual([
+      OPENAI_URL,
+      OPENAI_URL,
+      GEMINI_URL,
+    ]);
   });
 
-  it("goes straight to Gemini on a 429", async () => {
+  it("asks OpenAI once more after a 429 rate limit, then goes to Gemini", async () => {
+    const rateLimited = () =>
+      openAiError(429, {
+        message: "Rate limit reached for requests.",
+        type: "rate_limit_error",
+        code: "rate_limit_exceeded",
+      });
+    fetchMock
+      .mockResolvedValueOnce(rateLimited())
+      .mockResolvedValueOnce(rateLimited())
+      .mockResolvedValueOnce(geminiOk(QUIZ));
+
+    const result = await skipRetryWaits(askForQuiz);
+
+    expect(result.provider).toBe("gemini");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(loggedLines().map((line) => /result=(\w+)/.exec(line)?.[1])).toEqual([
+      "rate_limit",
+      "rate_limit",
+      "ok",
+    ]);
+  });
+
+  it("goes straight to Gemini when the OpenAI account is out of credit", async () => {
     fetchMock
       .mockResolvedValueOnce(
         openAiError(429, {
-          message: "Rate limit reached for requests.",
-          type: "rate_limit_error",
-          code: "rate_limit_exceeded",
+          message: "You exceeded your current quota.",
+          type: "insufficient_quota",
+          code: "insufficient_quota",
         }),
       )
       .mockResolvedValueOnce(geminiOk(QUIZ));
@@ -592,11 +717,9 @@ describe("fallback from OpenAI to Gemini", () => {
     const result = await askForQuiz();
 
     expect(result.provider).toBe("gemini");
+    // Waiting does not refill a balance, so there is no second OpenAI call.
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(loggedLines().map((line) => /result=(\w+)/.exec(line)?.[1])).toEqual([
-      "rate_limit",
-      "ok",
-    ]);
+    expect(requestAt(1).url).toBe(GEMINI_URL);
   });
 
   it("goes straight to Gemini when the network call fails", async () => {
@@ -611,66 +734,76 @@ describe("fallback from OpenAI to Gemini", () => {
   });
 
   it("throws the error of the last provider when both fail", async () => {
-    fetchMock
-      .mockResolvedValueOnce(openAiError(500, { message: "The server had an error." }))
-      .mockResolvedValueOnce(
-        geminiError(429, { message: "Resource has been exhausted.", status: "RESOURCE_EXHAUSTED" }),
-      );
+    fetchMock.mockImplementation(async (url) =>
+      String(url) === OPENAI_URL
+        ? openAiError(500, { message: "The server had an error." })
+        : geminiError(429, { message: "Resource has been exhausted.", status: "RESOURCE_EXHAUSTED" }),
+    );
 
-    const error = await failure(askForQuiz());
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
 
     expect(error.code).toBe("rate_limit");
     expect(error.message).toContain("Gemini");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Each provider is asked twice: the first try and one retry.
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("does not fall back when AI_PROVIDER forces one provider", async () => {
     setEnv({ AI_PROVIDER: "openai" });
-    fetchMock.mockResolvedValueOnce(openAiError(500, { message: "The server had an error." }));
+    fetchMock.mockImplementation(async () =>
+      openAiError(500, { message: "The server had an error." }),
+    );
 
-    const error = await failure(askForQuiz());
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
 
     expect(error.code).toBe("unknown");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requestAt(1).url).toBe(OPENAI_URL);
   });
 });
 
 describe("error mapping", () => {
+  // The last column is how often the provider is asked: 2 means the failure
+  // may pass (rate limit, overload, server error), so it is retried once.
   it.each([
-    [401, { message: "Incorrect API key provided.", code: "invalid_api_key" }, "auth"],
-    [403, { message: "Country, region, or territory not supported." }, "auth"],
-    [429, { message: "Rate limit reached.", type: "rate_limit_error" }, "rate_limit"],
-    [429, { message: "No credits.", type: "insufficient_quota", code: "credit_balance_exhausted" }, "rate_limit"],
-    [400, { message: "Invalid schema for response_format.", type: "invalid_request_error" }, "unknown"],
-    [404, { message: "The model does not exist.", code: "model_not_found" }, "unknown"],
-    [500, { message: "The server had an error." }, "unknown"],
-    [503, { message: "Overloaded.", code: "server_is_overloaded" }, "unknown"],
-  ] as const)("maps OpenAI HTTP %i %o to %s", async (status, body, code) => {
+    [401, { message: "Incorrect API key provided.", code: "invalid_api_key" }, "auth", 1],
+    [403, { message: "Country, region, or territory not supported." }, "auth", 1],
+    [429, { message: "Rate limit reached.", type: "rate_limit_error" }, "rate_limit", 2],
+    [429, { message: "No credits.", type: "insufficient_quota", code: "credit_balance_exhausted" }, "rate_limit", 1],
+    [400, { message: "Invalid schema for response_format.", type: "invalid_request_error" }, "unknown", 1],
+    [404, { message: "The model does not exist.", code: "model_not_found" }, "unknown", 1],
+    [408, { message: "Request timed out." }, "unknown", 2],
+    [500, { message: "The server had an error." }, "unknown", 2],
+    [503, { message: "Overloaded.", code: "server_is_overloaded" }, "unknown", 2],
+  ] as const)("maps OpenAI HTTP %i %o to %s, asked %i time(s)", async (status, body, code, tries) => {
     setEnv({ OPENAI_API_KEY: OPENAI_KEY });
-    fetchMock.mockResolvedValueOnce(openAiError(status, body));
+    fetchMock.mockImplementation(async () => openAiError(status, body));
 
-    const error = await failure(askForQuiz());
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
 
     expect(error.code).toBe(code);
     expect(error.userMessage.length).toBeGreaterThan(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(error.transient).toBe(tries === 2);
+    expect(fetchMock).toHaveBeenCalledTimes(tries);
   });
 
   it.each([
-    [400, { message: "API key not valid. Please pass a valid API key.", status: "INVALID_ARGUMENT" }, "auth"],
-    [403, { message: "Permission denied.", status: "PERMISSION_DENIED" }, "auth"],
-    [429, { message: "You exceeded your current quota.", status: "RESOURCE_EXHAUSTED" }, "rate_limit"],
-    [400, { message: "Request contains an invalid argument.", status: "INVALID_ARGUMENT" }, "unknown"],
-    [404, { message: "models/nope is not found.", status: "NOT_FOUND" }, "unknown"],
-    [503, { message: "The model is overloaded.", status: "UNAVAILABLE" }, "unknown"],
-  ] as const)("maps Gemini HTTP %i %o to %s", async (status, body, code) => {
+    [400, { message: "API key not valid. Please pass a valid API key.", status: "INVALID_ARGUMENT" }, "auth", 1],
+    [403, { message: "Permission denied.", status: "PERMISSION_DENIED" }, "auth", 1],
+    [429, { message: "You exceeded your current quota.", status: "RESOURCE_EXHAUSTED" }, "rate_limit", 2],
+    [400, { message: "Request contains an invalid argument.", status: "INVALID_ARGUMENT" }, "unknown", 1],
+    [404, { message: "models/nope is not found.", status: "NOT_FOUND" }, "unknown", 1],
+    [500, { message: "An internal error has occurred.", status: "INTERNAL" }, "unknown", 2],
+    [503, { message: "The model is overloaded.", status: "UNAVAILABLE" }, "unknown", 2],
+  ] as const)("maps Gemini HTTP %i %o to %s, asked %i time(s)", async (status, body, code, tries) => {
     setEnv({ GEMINI_API_KEY: GEMINI_KEY });
-    fetchMock.mockResolvedValueOnce(geminiError(status, body));
+    fetchMock.mockImplementation(async () => geminiError(status, body));
 
-    const error = await failure(askForQuiz());
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
 
     expect(error.code).toBe(code);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(error.transient).toBe(tries === 2);
+    expect(fetchMock).toHaveBeenCalledTimes(tries);
   });
 
   it("maps a rejected fetch to network", async () => {
@@ -688,9 +821,11 @@ describe("error mapping", () => {
 
   it("maps an error page that is not JSON to unknown", async () => {
     setEnv({ OPENAI_API_KEY: OPENAI_KEY });
-    fetchMock.mockResolvedValueOnce(new Response("<html>Bad gateway</html>", { status: 502 }));
+    fetchMock.mockImplementation(
+      async () => new Response("<html>Bad gateway</html>", { status: 502 }),
+    );
 
-    const error = await failure(askForQuiz());
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
 
     expect(error.code).toBe("unknown");
     expect(error.message).toContain("502");
@@ -698,18 +833,18 @@ describe("error mapping", () => {
 
   it("never puts the API key in an error or a log line", async () => {
     setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
-    fetchMock
-      .mockResolvedValueOnce(
-        openAiError(500, { message: `Something broke while using ${OPENAI_KEY}.` }),
-      )
-      .mockResolvedValueOnce(
-        geminiError(500, { message: `Internal error for key ${GEMINI_KEY}.`, status: "INTERNAL" }),
-      );
+    fetchMock.mockImplementation(async (url) =>
+      String(url) === OPENAI_URL
+        ? openAiError(500, { message: `Something broke while using ${OPENAI_KEY}.` })
+        : geminiError(500, { message: `Internal error for key ${GEMINI_KEY}.`, status: "INTERNAL" }),
+    );
 
-    const error = await failure(askForQuiz());
+    const error = await skipRetryWaits(() => failure(askForQuiz()));
 
     expect(error.code).toBe("unknown");
     expect(error.message).toContain("Internal error");
+    // Two tries per provider, each with its own log line.
+    expect(loggedLines()).toHaveLength(4);
     for (const text of [error.message, error.userMessage, ...loggedLines()]) {
       expect(text).not.toContain(OPENAI_KEY);
       expect(text).not.toContain(GEMINI_KEY);
@@ -767,11 +902,29 @@ describe("timeout", () => {
     fetchMock.mockImplementationOnce(hangingFetch).mockResolvedValueOnce(geminiOk(QUIZ));
 
     const pending = askForQuiz();
-    await vi.advanceTimersByTimeAsync(AI_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(AI_TIMEOUT_WITH_FALLBACK_MS);
     const result = await pending;
 
     expect(result.provider).toBe("gemini");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives the first provider only 30 seconds when a fallback is waiting", async () => {
+    vi.useFakeTimers();
+    setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
+    fetchMock.mockImplementationOnce(hangingFetch).mockResolvedValueOnce(geminiOk(QUIZ));
+
+    const pending = askForQuiz();
+    await vi.advanceTimersByTimeAsync(AI_TIMEOUT_WITH_FALLBACK_MS - 1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(infoSpy).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await pending;
+
+    expect(AI_TIMEOUT_WITH_FALLBACK_MS).toBe(30_000);
+    expect(result.provider).toBe("gemini");
+    expect(requestAt(1).url).toBe(GEMINI_URL);
+    expect(loggedLines().map((line) => /result=(\w+)/.exec(line)?.[1])).toEqual(["timeout", "ok"]);
   });
 
   it("gives up within 55 seconds in total, so a 60-second route limit is never hit", async () => {
@@ -780,7 +933,7 @@ describe("timeout", () => {
     fetchMock.mockImplementation(hangingFetch);
 
     const pending = failure(askForQuiz());
-    // OpenAI gets its full 45 seconds; Gemini only what is left of the budget.
+    // OpenAI gets 30 seconds; Gemini gets what is left of the budget.
     await vi.advanceTimersByTimeAsync(AI_TOTAL_BUDGET_MS - 1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(loggedLines()).toHaveLength(1);
@@ -789,7 +942,7 @@ describe("timeout", () => {
 
     expect(AI_TOTAL_BUDGET_MS).toBe(55_000);
     expect(error.code).toBe("timeout");
-    expect(error.message).toContain("10 seconds");
+    expect(error.message).toContain("25 seconds");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -798,11 +951,11 @@ describe("timeout", () => {
     setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
     // Two slow OpenAI answers that are not JSON, then Gemini would be next.
     fetchMock.mockImplementationOnce(async () => {
-      await new Promise((resolve) => setTimeout(resolve, AI_TIMEOUT_MS - 1_000));
+      await new Promise((resolve) => setTimeout(resolve, AI_TIMEOUT_WITH_FALLBACK_MS - 1_000));
       return openAiOk("not json");
     });
     fetchMock.mockImplementationOnce(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 9_000));
+      await new Promise((resolve) => setTimeout(resolve, 24_000));
       return openAiOk("still not json");
     });
 
@@ -815,6 +968,31 @@ describe("timeout", () => {
     expect(error.code).toBe("invalid_output");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(requestAt(1).url).toBe(OPENAI_URL);
+  });
+
+  it("does not wait for a retry that could not finish in time", async () => {
+    vi.useFakeTimers();
+    setEnv({ OPENAI_API_KEY: OPENAI_KEY, GEMINI_API_KEY: GEMINI_KEY });
+    // OpenAI uses its 30 seconds. Gemini says "overloaded" 22 seconds later.
+    fetchMock.mockImplementationOnce(hangingFetch);
+    fetchMock.mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 22_000));
+      return geminiError(503, { message: "The model is overloaded.", status: "UNAVAILABLE" });
+    });
+
+    let settled = false;
+    const pending = failure(askForQuiz()).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(AI_TIMEOUT_WITH_FALLBACK_MS + 22_000);
+
+    // Three seconds are left: not enough for the wait and another try, so the
+    // failure is reported at once and not after the wait.
+    expect(settled).toBe(true);
+    const error = await pending;
+    expect(error.code).toBe("unknown");
+    expect(error.message).toContain("503");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

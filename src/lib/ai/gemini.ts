@@ -10,7 +10,7 @@
 //   responseJsonSchema pair is marked deprecated but is kept here as a second
 //   try, in case a model or API version does not know responseFormat yet.
 
-import { AiError, type AiErrorCode } from "./errors";
+import { AiError, isTransientStatus, type AiErrorCode } from "./errors";
 import type {
   HttpReply,
   HttpSend,
@@ -60,13 +60,27 @@ function buildBody(call: ProviderCall, legacyFields: boolean): JsonSchema {
   if (call.maxOutputTokens !== undefined) {
     generationConfig.maxOutputTokens = call.maxOutputTokens + THINKING_HEADROOM_TOKENS;
   }
-  if (call.temperature !== undefined) generationConfig.temperature = call.temperature;
+  // Google's Gemini 3 guide says to keep the temperature at its default (1.0):
+  // a lower value can make these models loop or answer worse. Only an older
+  // model set through GEMINI_MODEL gets the caller's value.
+  if (call.temperature !== undefined && acceptsTemperature(call.model)) {
+    generationConfig.temperature = call.temperature;
+  }
 
   return {
     systemInstruction: { parts: [{ text: call.system }] },
     contents: [{ role: "user", parts: [{ text: call.user }] }],
     generationConfig,
   };
+}
+
+/**
+ * True only for the Gemini 1.x and 2.x families ("gemini-2.5-flash"). Gemini 3
+ * models, aliases such as "gemini-flash-latest" and names not known here keep
+ * the model's default temperature.
+ */
+function acceptsTemperature(model: string): boolean {
+  return /^gemini-[12][.-]/.test(model.replace(/^models\//, ""));
 }
 
 /** True for the "unknown field" error an API without responseFormat would give. */
@@ -224,7 +238,11 @@ function httpError(reply: HttpReply): AiError {
   if (code === "auth") {
     return new AiError(code, `Gemini HTTP ${reply.status}${status ? ` (${status})` : ""}`);
   }
-  return new AiError(code, `Gemini HTTP ${reply.status}: ${shorten(message)}`);
+  return new AiError(
+    code,
+    `Gemini HTTP ${reply.status}: ${shorten(message)}`,
+    isTransientStatus(reply.status),
+  );
 }
 
 // --- Helpers -----------------------------------------------------------------

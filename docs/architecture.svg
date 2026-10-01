@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="svg-title svg-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <title id="svg-title">AralLoop system architecture</title>
+  <desc id="svg-desc">The browser shows teacher, student and parent screens. It sends page requests and JSON API calls to the Next.js server. On the server, pages and API routes use a repository, a file extraction module, a grading module and an AI layer. The repository talks to PostgreSQL: PGlite locally and a hosted PostgreSQL in deployment. The AI layer calls the OpenAI API first and the Gemini API as fallback, and runs a labelled sample mode when no key is set.</desc>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1280" height="720" fill="#ffffff"/>
+
+  <!-- Title and legend -->
+  <text x="40" y="40" font-size="26" font-weight="700" fill="#1e3084">AralLoop system architecture</text>
+
+  <rect x="700" y="24" width="18" height="18" rx="4" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="726" y="39" font-size="16" fill="#1e3084">App code</text>
+  <rect x="830" y="24" width="18" height="18" rx="4" fill="#fff3c4" stroke="#f0b429" stroke-width="2"/>
+  <text x="856" y="39" font-size="16" fill="#1e3084">AI layer</text>
+  <rect x="960" y="24" width="18" height="18" rx="4" fill="#ffffff" stroke="#2549e6" stroke-width="2" stroke-dasharray="4 3"/>
+  <text x="986" y="39" font-size="16" fill="#1e3084">External AI service</text>
+
+  <!-- Containers -->
+  <rect x="40" y="56" width="1200" height="96" rx="14" fill="#ffffff" stroke="#93b4fd" stroke-width="2"/>
+  <text x="56" y="76" font-size="16" font-weight="700" fill="#1e3084">Browser</text>
+
+  <rect x="40" y="200" width="1200" height="316" rx="14" fill="#ffffff" stroke="#93b4fd" stroke-width="2"/>
+  <text x="1224" y="222" font-size="16" font-weight="700" fill="#1e3084" text-anchor="end">Next.js server</text>
+
+  <!-- Arrows: browser to server -->
+  <line x1="151" y1="152" x2="151" y2="226" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="145,224 157,224 151,236" fill="#2549e6"/>
+  <text x="161" y="182" font-size="16" fill="#1e32a8">page requests</text>
+
+  <line x1="747" y1="152" x2="747" y2="226" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="741,224 753,224 747,236" fill="#2549e6"/>
+  <text x="757" y="182" font-size="16" fill="#1e32a8">JSON API calls</text>
+
+  <!-- Arrows: pages and API routes to the modules -->
+  <line x1="151" y1="300" x2="151" y2="354" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="145,352 157,352 151,364" fill="#2549e6"/>
+  <text x="161" y="337" font-size="16" fill="#1e32a8">reads</text>
+
+  <line x1="298" y1="300" x2="298" y2="354" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="292,352 304,352 298,364" fill="#2549e6"/>
+  <text x="308" y="337" font-size="16" fill="#1e32a8">reads, writes</text>
+
+  <line x1="440" y1="300" x2="440" y2="354" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="434,352 446,352 440,364" fill="#2549e6"/>
+  <text x="450" y="337" font-size="16" fill="#1e32a8">uploaded file</text>
+
+  <line x1="644" y1="300" x2="644" y2="354" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="638,352 650,352 644,364" fill="#2549e6"/>
+  <text x="654" y="337" font-size="16" fill="#1e32a8">answers</text>
+
+  <line x1="1024" y1="300" x2="1024" y2="354" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="1018,352 1030,352 1024,364" fill="#2549e6"/>
+  <text x="1014" y="337" font-size="16" fill="#1e32a8" text-anchor="end">generate, summarise, tutor</text>
+
+  <!-- Arrow: grading module to AI layer -->
+  <line x1="734" y1="432" x2="814" y2="432" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="812,426 812,438 824,432" fill="#2549e6"/>
+  <text x="779" y="419" font-size="16" fill="#1e32a8" text-anchor="middle">free-text</text>
+  <text x="779" y="456" font-size="16" fill="#1e32a8" text-anchor="middle">answers</text>
+
+  <!-- Arrows: repository to PostgreSQL, AI layer to the AI services -->
+  <line x1="191" y1="500" x2="191" y2="590" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="185,588 197,588 191,600" fill="#2549e6"/>
+  <text x="201" y="564" font-size="16" fill="#1e32a8">one SQL codebase, two drivers</text>
+
+  <line x1="918" y1="500" x2="918" y2="590" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="912,588 924,588 918,600" fill="#2549e6"/>
+  <line x1="1130" y1="500" x2="1130" y2="590" stroke="#2549e6" stroke-width="2"/>
+  <polygon points="1124,588 1136,588 1130,600" fill="#2549e6"/>
+  <text x="1024" y="552" font-size="16" fill="#1e32a8" text-anchor="middle">plain fetch,</text>
+  <text x="1024" y="574" font-size="16" fill="#1e32a8" text-anchor="middle">structured output</text>
+
+  <!-- Browser: three sets of screens -->
+  <rect x="56" y="86" width="372" height="56" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="242" y="109" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Teacher screens</text>
+  <text x="242" y="131" font-size="16" fill="#1e3084" text-anchor="middle">Lessons, activity editor, results</text>
+
+  <rect x="454" y="86" width="372" height="56" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="640" y="109" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Student screens</text>
+  <text x="640" y="131" font-size="16" fill="#1e3084" text-anchor="middle">Answer form, feedback, tutor</text>
+
+  <rect x="852" y="86" width="372" height="56" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="1038" y="109" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Parent screens</text>
+  <text x="1038" y="131" font-size="16" fill="#1e3084" text-anchor="middle">Summary in English and Filipino, tutor</text>
+
+  <!-- Server row 1: pages and API routes -->
+  <rect x="56" y="236" width="190" height="64" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="151" y="262" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Pages</text>
+  <text x="151" y="285" font-size="16" fill="#1e3084" text-anchor="middle">server components</text>
+
+  <rect x="270" y="236" width="954" height="64" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="747" y="262" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">API routes</text>
+  <text x="747" y="285" font-size="16" fill="#1e3084" text-anchor="middle">13 handlers: session check, zod validation, error mapping</text>
+
+  <!-- Server row 2: repository, file extraction, grading, AI layer -->
+  <rect x="56" y="364" width="270" height="136" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="191" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Repository</text>
+  <text x="191" y="418" font-size="16" fill="#1e3084" text-anchor="middle">repo.ts: all the SQL</text>
+  <text x="191" y="441" font-size="16" fill="#1e3084" text-anchor="middle">client.ts: one query</text>
+  <text x="191" y="464" font-size="16" fill="#1e3084" text-anchor="middle">interface, two drivers</text>
+
+  <rect x="350" y="364" width="180" height="136" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="440" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">File extraction</text>
+  <text x="440" y="418" font-size="16" fill="#1e3084" text-anchor="middle">txt, md, pdf, docx</text>
+  <text x="440" y="441" font-size="16" fill="#1e3084" text-anchor="middle">to plain text</text>
+
+  <rect x="554" y="364" width="180" height="136" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <text x="644" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Grading module</text>
+  <text x="644" y="418" font-size="16" fill="#1e3084" text-anchor="middle">objective items</text>
+  <text x="644" y="441" font-size="16" fill="#1e3084" text-anchor="middle">checked by code,</text>
+  <text x="644" y="464" font-size="16" fill="#1e3084" text-anchor="middle">no AI needed</text>
+
+  <rect x="824" y="364" width="400" height="136" rx="10" fill="#fff3c4" stroke="#f0b429" stroke-width="3"/>
+  <text x="1024" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">AI layer</text>
+  <text x="1024" y="418" font-size="16" fill="#1e3084" text-anchor="middle">4 tasks: generate, grade, summarise, tutor</text>
+  <text x="1024" y="441" font-size="16" fill="#1e3084" text-anchor="middle">JSON output validated with zod, repaired</text>
+  <text x="1024" y="464" font-size="16" fill="#1e3084" text-anchor="middle">Retry once, then fallback provider</text>
+  <text x="1024" y="487" font-size="16" fill="#1e3084" text-anchor="middle">No key: sample mode, labelled as not AI</text>
+
+  <!-- Outside the server: database and AI services -->
+  <rect x="56" y="600" width="420" height="84" rx="10" fill="#dbe7fe" stroke="#2549e6" stroke-width="2"/>
+  <text x="266" y="626" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">PostgreSQL</text>
+  <text x="266" y="650" font-size="16" fill="#1e3084" text-anchor="middle">Local: PGlite, embedded in the Node process</text>
+  <text x="266" y="672" font-size="16" fill="#1e3084" text-anchor="middle">Deployment: hosted PostgreSQL, pg driver</text>
+
+  <rect x="824" y="600" width="188" height="84" rx="10" fill="#ffffff" stroke="#2549e6" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="918" y="636" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">OpenAI API</text>
+  <text x="918" y="660" font-size="16" fill="#1e3084" text-anchor="middle">first choice</text>
+
+  <rect x="1036" y="600" width="188" height="84" rx="10" fill="#ffffff" stroke="#2549e6" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="1130" y="636" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Gemini API</text>
+  <text x="1130" y="660" font-size="16" fill="#1e3084" text-anchor="middle">fallback</text>
+</svg>

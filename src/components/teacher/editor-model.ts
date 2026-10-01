@@ -15,6 +15,8 @@ const STARTING_CHOICES = 3;
 export const MIN_POINTS = 1;
 export const MAX_POINTS = 20;
 const MAX_ACCEPTED_ANSWERS = 10;
+/** Put between accepted answers when a stored item is loaded into the editor. */
+const ACCEPTED_SEPARATOR = "; ";
 
 export interface DraftItem {
   /** Stable React key. Not the database id: saving replaces every item. */
@@ -29,7 +31,10 @@ export interface DraftItem {
   trueFalse: "True" | "False" | "";
   /** identification: the expected answer. short_answer: the model answer. */
   answer: string;
-  /** identification: other accepted answers, separated by commas. */
+  /**
+   * identification: other accepted answers, separated by semicolons. Not by
+   * commas: an answer such as "June 12, 1898" contains one.
+   */
   accepted: string;
   /** short_answer only. */
   rubric: string;
@@ -82,7 +87,7 @@ export function fromItem(item: Item): DraftItem {
     type: item.type,
     question: item.question,
     choices: [],
-    accepted: item.acceptedAnswers.join(", "),
+    accepted: item.acceptedAnswers.join(ACCEPTED_SEPARATOR),
     rubric: item.rubric ?? "",
     explanation: item.explanation ?? "",
     points: String(item.points),
@@ -161,11 +166,14 @@ export function removeChoice(item: DraftItem, index: number): DraftItem {
   return { ...item, choices: item.choices.filter((_, i) => i !== index), correctIndex };
 }
 
-/** "Rizal, Dr. Jose Rizal ,, " -> ["Rizal", "Dr. Jose Rizal"], without repeats. */
+/**
+ * "Rizal; Dr. Jose Rizal ;; " -> ["Rizal", "Dr. Jose Rizal"], without repeats.
+ * A pasted line break also separates answers. A comma does not.
+ */
 export function parseAccepted(text: string): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
-  for (const part of text.split(",")) {
+  for (const part of text.split(/[;\n]/)) {
     const value = part.trim();
     const id = value.toLowerCase();
     if (value === "" || seen.has(id)) continue;

@@ -23,7 +23,12 @@ export default async function ActivityPage(props: PageProps<"/teacher/activities
       <Page>
         <PageHeader
           title="Review the draft"
-          description="Edit anything the AI wrote, then publish it to your class."
+          description={
+            // A sample-mode draft is built by plain code and is never called AI.
+            activity.aiProvider === "mock"
+              ? "Edit anything in this sample draft, then publish it to your class."
+              : "Edit anything the AI wrote, then publish it to your class."
+          }
           back={back}
         />
         {/* Keyed so a different activity never inherits this one's edits. */}

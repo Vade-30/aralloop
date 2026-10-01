@@ -8,7 +8,7 @@ import { SummaryPanel } from "@/components/parent/SummaryPanel";
 import { ResultItem } from "@/components/student/ResultItem";
 import { questionsLabel } from "@/components/student/labels";
 import { TutorChat } from "@/components/TutorChat";
-import { Alert, Card, Page, PageHeader, Score, SectionTitle } from "@/components/ui";
+import { AiLabel, Alert, Card, Page, PageHeader, Score, SectionTitle } from "@/components/ui";
 import { getAiStatus } from "@/lib/ai";
 import { getActivity, getLesson, getSubmissionById, getUser } from "@/lib/db/repo";
 import { requireRole } from "@/lib/session";
@@ -44,7 +44,12 @@ export default async function ParentSubmissionPage(
     <Page>
       <PageHeader
         title={activity.title}
-        description={lesson ? `Lesson: ${lesson.title}` : undefined}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            {lesson && `Lesson: ${lesson.title}`}
+            <AiLabel provider={activity.aiProvider}>AI-drafted · reviewed by teacher</AiLabel>
+          </span>
+        }
         back={{ href: "/parent", label: "All results" }}
       />
 

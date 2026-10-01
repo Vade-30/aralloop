@@ -82,6 +82,17 @@ describe("fromItem and toItemInput", () => {
     },
   );
 
+  it("does not split accepted answers that contain a comma when a draft is saved unchanged", () => {
+    const stored = item({
+      ...identification,
+      answerKey: "June 12, 1898",
+      acceptedAnswers: ["Hunyo 12, 1898", "1,898", "Kawit, Cavite"],
+    });
+    const draft = fromItem(stored);
+    expect(draft.accepted).toBe("Hunyo 12, 1898; 1,898; Kawit, Cavite");
+    expect(toItemInput(draft).acceptedAnswers).toEqual(stored.acceptedAnswers);
+  });
+
   it("leaves a multiple-choice item unmarked when the key matches no choice", () => {
     const draft = fromItem(item({ answerKey: "Helium" }));
     expect(draft.correctIndex).toBe(-1);
@@ -163,8 +174,16 @@ describe("changeType", () => {
 });
 
 describe("parseAccepted", () => {
-  it("splits on commas, trims, and drops blanks and repeats", () => {
-    expect(parseAccepted(" Rizal, Dr. Jose Rizal ,, rizal ,")).toEqual(["Rizal", "Dr. Jose Rizal"]);
+  it("splits on semicolons, trims, and drops blanks and repeats", () => {
+    expect(parseAccepted(" Rizal; Dr. Jose Rizal ;; rizal ;")).toEqual(["Rizal", "Dr. Jose Rizal"]);
+  });
+
+  it("also splits on a pasted line break", () => {
+    expect(parseAccepted("Rizal\nDr. Jose Rizal")).toEqual(["Rizal", "Dr. Jose Rizal"]);
+  });
+
+  it("keeps an answer that contains a comma in one piece", () => {
+    expect(parseAccepted("Hunyo 12, 1898; 1,898")).toEqual(["Hunyo 12, 1898", "1,898"]);
   });
 });
 

@@ -135,7 +135,7 @@ describe("countNeedingReview", () => {
 });
 
 describe("answerRows", () => {
-  it("lists answers waiting for review first, then follows the item order", () => {
+  it("follows the item order, and does not move answers waiting for review to the top", () => {
     const rows = answerRows(
       submission(
         "a",
@@ -144,7 +144,7 @@ describe("answerRows", () => {
       ),
       items,
     );
-    expect(rows.map((row) => row.item.position)).toEqual([2, 1, 3]);
+    expect(rows.map((row) => row.item.position)).toEqual([1, 2, 3]);
   });
 
   it("skips an answer whose item is gone", () => {

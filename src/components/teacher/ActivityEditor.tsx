@@ -191,7 +191,8 @@ export function ActivityEditor({
   return (
     <div className="space-y-4">
       <Alert tone="info" title="Why this format">
-        <p>{activity.aiReason || "The AI did not give a reason for this format."}</p>
+        {/* Neutral on purpose: a sample-mode draft was not written by AI. */}
+        <p>{activity.aiReason || "No reason was recorded for this format."}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <AiLabel provider={activity.aiProvider}>AI-generated draft</AiLabel>
           {type && <Badge tone="brand">{ACTIVITY_TYPE_LABELS[type]}</Badge>}

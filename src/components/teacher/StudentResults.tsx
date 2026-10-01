@@ -36,6 +36,17 @@ function GradedBy({ answer, aiProvider }: { answer: Answer; aiProvider: AiProvid
   }
 }
 
+/** Why a flagged answer is waiting for the teacher. A sample check is never called AI. */
+function reviewReason(answer: Answer, aiProvider: AiProviderName): string {
+  if (answer.gradedBy === "pending") {
+    return "The AI could not grade this answer. Read it and set the score.";
+  }
+  if (aiProvider === "mock") {
+    return "This is a sample check, not AI. Check it and save the score you agree with.";
+  }
+  return "The AI was not sure about this grade. Check it and save the score you agree with.";
+}
+
 function Row({ label, children }: { label: string; children: string }) {
   return (
     <div>
@@ -72,9 +83,7 @@ function AnswerCard({
 
       {answer.needsReview && (
         <p className="text-sm text-amber-900">
-          {answer.gradedBy === "pending"
-            ? "The AI could not grade this answer. Read it and set the score."
-            : "The AI was not sure about this grade. Check it and save the score you agree with."}
+          {reviewReason(answer, aiProvider)}
         </p>
       )}
 
@@ -110,11 +119,13 @@ function AnswerCard({
         <GradedBy answer={answer} aiProvider={aiProvider} />
       </div>
 
+      {/* A pending answer's feedback is the "waiting for your teacher" placeholder.
+          The form starts empty so that sentence is not saved with the score. */}
       <OverrideForm
         answerId={answer.id}
         points={item.points}
         score={answer.score}
-        feedback={answer.feedback}
+        feedback={answer.gradedBy === "pending" ? "" : answer.feedback}
         needsReview={answer.needsReview}
       />
     </li>

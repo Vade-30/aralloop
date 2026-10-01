@@ -210,7 +210,7 @@ export function ItemEditor({
           <Field
             label="Also accept"
             htmlFor={`${id}-accepted`}
-            hint="Other spellings or names that are also correct, separated by commas."
+            hint="Other spellings or names that are also correct, separated by semicolons (;)."
           >
             <Input
               id={`${id}-accepted`}

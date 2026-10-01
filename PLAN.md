@@ -130,7 +130,7 @@ Swap any of these for an allowed tool your team knows better.
 | No harmful content | Generation is limited to the teacher's lesson; teacher reviews before publishing. |
 | No copyright violation | Sample lessons are written by the team. Teachers upload their own materials. |
 | No sensitive data without consent | Sample data only. The app stores a name, a role and scores, nothing else. |
-| No deceptive AI | Every generated activity, grade and summary is labelled "AI-generated, reviewed by teacher". |
+| No deceptive AI | Everything the AI writes is labelled as AI-written. The teacher reviews every activity before publishing and can change any score. Sample-mode output is labelled as not AI. |
 
 ---
 
@@ -200,7 +200,7 @@ privacy (minimal data), scalability (hosted, stateless API).
 ### Likely Q&A
 
 - **What if the AI grades wrong?** Objective items are graded by code, not AI. Free-text grades carry a confidence flag and the teacher can override any score.
-- **Can students use it to cheat?** The answer key is never sent to the student's browser before submission.
+- **Can students use it to cheat?** The server never sends the answer key to a student account before that student submits, and the tutor only opens after submitting. The prototype has no real login, so choosing a sample account stands in for it; a real deployment would use school sign-in.
 - **What does it cost a school?** One AI call per activity and one per submission on a small model. Measure your actual usage during testing and quote that.
 - **Does it work offline?** No. Say so, and name it as future work.
 - **What about student privacy?** Only a name, a role and scores are stored; the prototype uses sample data.

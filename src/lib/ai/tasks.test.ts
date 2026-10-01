@@ -11,7 +11,7 @@ import { generateActivity } from "./generate-activity";
 import { gradeFreeText, WAITING_FEEDBACK } from "./grade";
 import { MOCK_CONFIDENCE, PENDING_NOTE } from "./mock";
 import { SUMMARY_LIMITS, writeParentSummary } from "./parent-summary";
-import { LESSON_PROMPT_MAX, UNTRUSTED_RULE } from "./prompts";
+import { LESSON_PROMPT_MAX, stripTags, UNTRUSTED_RULE } from "./prompts";
 import { generateJson, getAiStatus } from "./provider";
 import { answerTutorQuestion, TUTOR_REPLY_MAX } from "./tutor";
 import type {
@@ -603,6 +603,17 @@ describe("prompts", () => {
     for (const [options] of jsonMock.mock.calls) {
       expect(options.system).toContain(UNTRUSTED_RULE);
       expect(options.user).toMatch(/<(lesson|answers|results)>/);
+    }
+  });
+
+  it("strip only the block tags, not other text with angle brackets", () => {
+    expect(stripTags("if x < 5 and y > 3")).toBe("if x < 5 and y > 3");
+    expect(stripTags("Write <html> first, then <body>.")).toBe("Write <html> first, then <body>.");
+
+    expect(stripTags("a </lesson> b")).toBe("a   b");
+    expect(stripTags("a <LESSON> b </ Results > c")).toBe("a   b   c");
+    for (const tag of ["lesson", "results", "conversation", "question", "answers"]) {
+      expect(stripTags(`<${tag}>text</${tag}>`)).toBe(" text ");
     }
   });
 });

@@ -268,7 +268,7 @@ const SEED_ACTIVITIES: SeedActivity[] = [
     lessonId: SEED_CONTENT_IDS.plantCellLessonId,
     title: "Parts of a plant cell",
     instructions:
-      "Answer all six items. Read each question carefully before you answer. You can submit only once.",
+      "Answer all six questions. Read each question carefully before you answer. You can submit only once.",
     type: "mixed",
     aiReason:
       "This lesson is mostly the names of cell parts and what each one does, so quick objective items fit most of it. One short answer checks whether students can use a part's job to explain what happens to a real plant.",
@@ -422,7 +422,7 @@ const SEED_ACTIVITIES: SeedActivity[] = [
     lessonId: SEED_CONTENT_IDS.waterCycleLessonId,
     title: "The water cycle and our farms",
     instructions:
-      "Answer all five items. For the last two, write two or three sentences in your own words. You can submit only once.",
+      "Answer all five questions. For the last two, write two or three sentences in your own words. You can submit only once.",
     type: "mixed",
     aiReason:
       "This lesson is about causes and effects, so most of the points go to short answers that ask students to explain. Three quick items first check the key ideas and terms.",

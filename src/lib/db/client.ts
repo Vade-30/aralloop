@@ -68,11 +68,19 @@ async function openPglite(): Promise<Db> {
 async function openPostgres(connectionString: string): Promise<Db> {
   const { Pool } = await import("pg");
   const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString);
+  // `pg` lets sslmode=... in the URL override the ssl option below, and then
+  // fails the certificate check on Supabase, so the parameter is removed.
+  const cleaned = connectionString
+    .replace(/([?&])sslmode=[^&]*&?/i, "$1")
+    .replace(/[?&]$/, "");
   const pool = new Pool({
-    connectionString,
+    connectionString: cleaned,
     max: 3,
     ssl: isLocal ? undefined : { rejectUnauthorized: false },
   });
+  // Without a listener, a dropped idle connection is an unhandled 'error'
+  // event and stops the process; with one it is only logged.
+  pool.on("error", (error) => console.error("[db] idle connection error:", error.message));
   return {
     kind: "postgres",
     query: async <T>(sql: string, params?: unknown[]) =>

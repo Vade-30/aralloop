@@ -599,7 +599,7 @@ export function mockGenerateActivity(input: GenerateActivityInput): GeneratedAct
   const types = new Set(items.map((item) => item.type));
   return {
     title: clip(title ? `Sample activity: ${title}` : "Sample activity", 120),
-    instructions: "Answer each item using what you learned in the lesson.",
+    instructions: "Answer each question using what you learned in the lesson.",
     type: types.size === 1 ? items[0].type : "mixed",
     reason: SAMPLE_REASON,
     items,
@@ -894,16 +894,16 @@ export function mockTutorReply(input: TutorInput): { reply: string } {
     const answer = quote(item.correctAnswer, 160);
     const feedback = clip(collapse(item.feedback), 220);
     body = filipino
-      ? `Sa item ${item.position}, ${answer} ang tamang sagot.${feedback ? ` Ito ang feedback: ${feedback}` : ""}`
-      : `For item ${item.position}, ${answer} is the correct answer.${feedback ? ` The feedback says: ${feedback}` : ""}`;
+      ? `Sa tanong ${item.position}, ${answer} ang tamang sagot.${feedback ? ` Ito ang feedback: ${feedback}` : ""}`
+      : `For question ${item.position}, ${answer} is the correct answer.${feedback ? ` The feedback says: ${feedback}` : ""}`;
   } else if (sentence !== null) {
     body = filipino
       ? `Ito ang bahagi ng lesson na pinakamalapit sa tanong: ${quote(sentence, 260)}`
       : `The part of the lesson closest to the question says: ${quote(sentence, 260)}`;
   } else {
     body = filipino
-      ? `Basahin ulit ang lesson na ${lesson} at ang feedback sa bawat item.`
-      : `Read the lesson ${lesson} again, and the feedback under each item.`;
+      ? `Basahin ulit ang lesson na ${lesson} at ang feedback sa bawat tanong.`
+      : `Read the lesson ${lesson} again, and the feedback under each question.`;
   }
 
   let help = "";

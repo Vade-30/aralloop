@@ -6,9 +6,10 @@
 // states it promises, and refuses another class's data. They do not click
 // anything; the editor's rules are tested in editor-model.test.ts.
 
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GeneratedActivity, User } from "@/lib/types";
+import type { GeneratedActivity, Item, SubmissionWithAnswers, User } from "@/lib/types";
 
 const mocks = vi.hoisted(() => ({ requireRole: vi.fn() }));
 
@@ -28,6 +29,7 @@ import ResultsPage from "@/app/teacher/activities/[activityId]/results/page";
 import LessonPage from "@/app/teacher/lessons/[lessonId]/page";
 import NewLessonPage from "@/app/teacher/lessons/new/page";
 import TeacherDashboardPage from "@/app/teacher/page";
+import { StudentResults } from "@/components/teacher/StudentResults";
 import { closeDb } from "@/lib/db/client";
 import {
   createActivity,
@@ -201,6 +203,7 @@ describe("activity page", () => {
       const html = renderToStaticMarkup(await ActivityPage(activityProps(draft.id)));
       const page = text(html);
       for (const expected of [
+        "Edit anything the AI wrote",
         "Why this format",
         generated.reason,
         "AI-generated draft",
@@ -236,6 +239,8 @@ describe("activity page", () => {
       const page = text(renderToStaticMarkup(await ActivityPage(activityProps(draft.id))));
       expect(page).toContain("Sample mode · not real AI");
       expect(page).not.toContain("AI-generated draft");
+      expect(page).toContain("Edit anything in this sample draft");
+      expect(page).not.toContain("the AI wrote");
     } finally {
       await deleteActivity(draft.id);
     }
@@ -317,6 +322,65 @@ describe("results page", () => {
     expect(page.match(/Save score/g) ?? []).toHaveLength(waiting);
     expect(page.match(/Change score/g) ?? []).toHaveLength(answers.length - waiting);
     expect(page.match(/Needs your review/g) ?? []).toHaveLength(waiting);
+  });
+
+  it("does not call a flagged sample-mode grade the AI's", async () => {
+    // The sample submissions were graded in sample mode; one answer is flagged.
+    const page = text(
+      renderToStaticMarkup(
+        await ResultsPage(activityProps(SEED_CONTENT_IDS.waterCycleActivityId)),
+      ),
+    );
+    expect(page).toContain("Needs your review");
+    expect(page).toContain("This is a sample check, not AI.");
+    expect(page).not.toContain("The AI was not sure about this grade.");
+  });
+
+  it("says the AI was not sure when a real AI service gave the flagged grade", () => {
+    const submission: SubmissionWithAnswers = {
+      id: "submission-1",
+      activityId: "activity-1",
+      studentId: teacher.id,
+      totalScore: 1,
+      maxScore: 2,
+      needsReview: true,
+      summary: null,
+      summaryProvider: null,
+      gradingProvider: "gemini",
+      submittedAt: "2026-10-02T00:00:00.000Z",
+      answers: [
+        {
+          id: "answer-1",
+          submissionId: "submission-1",
+          itemId: "item-1",
+          response: "The sun dries it.",
+          score: 1,
+          feedback: "Partly right.",
+          gradedBy: "ai",
+          confidence: 0.5,
+          needsReview: true,
+        },
+      ],
+    };
+    const item: Item = {
+      id: "item-1",
+      activityId: "activity-1",
+      position: 1,
+      ...generated.items[1],
+    };
+    const page = text(
+      renderToStaticMarkup(
+        createElement(StudentResults, {
+          students: [teacher],
+          submissions: [submission],
+          items: [item],
+          // The service configured now must not change how a stored grade is described.
+          aiProvider: "mock",
+        }),
+      ),
+    );
+    expect(page).toContain("The AI was not sure about this grade.");
+    expect(page).not.toContain("sample check");
   });
 
   it("labels a score the teacher set and shows the new feedback", async () => {
