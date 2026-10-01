@@ -7,7 +7,7 @@ A slide-ready version of the first diagram is in [architecture.svg](./architectu
 ## What has and has not been verified
 
 - Verified: typecheck, lint, the unit tests and the production build pass. The whole loop has been clicked through in a browser in sample mode, on the embedded database.
-- Not yet verified: a live call to OpenAI or Gemini. The request code is written and its tests replace `fetch` with a mock, so no real AI service has answered yet. `npm run check:ai` makes one small real call per configured key and is the first thing to run once a key is available.
+- Verified on Gemini only: one full loop was run with a live Gemini key and all four AI tasks answered. Not yet verified: a live call to OpenAI, whose request code is tested with `fetch` replaced by a mock. `npm run check:ai` makes one small real call per configured key.
 - Not yet verified: the hosted PostgreSQL path. The `pg` driver code is written, but only PGlite has run.
 - Sample mode is not AI. With no API key the app runs plain code that builds stand-in results and labels them "Sample mode · not real AI" on screen.
 

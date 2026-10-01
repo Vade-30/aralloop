@@ -10,7 +10,7 @@ Reading guide: sections 1 to 7 are the main story. Sections 8 to 12 are referenc
 
 ## Status
 
-AralLoop is a working prototype. Every step of the loop is implemented and has been clicked through in a browser. Two things are **not yet verified**: a live call to OpenAI or Gemini (no API key was available during development, so the AI requests are tested against mocked responses), and a hosted PostgreSQL database (only the embedded database has been run). Without an API key the app runs a labelled sample mode, which is plain code and not AI.
+AralLoop is a working prototype. Every step of the loop is implemented and has been clicked through in a browser. One full loop has been run with live AI on Google Gemini (activity draft, grading, tutor and parent summary all worked). Two things are **not yet verified**: a live call to OpenAI (its requests are tested against mocked responses only), and a hosted PostgreSQL database (only the embedded database has been run). Without an API key the app runs a labelled sample mode, which is plain code and not AI.
 
 ## 1. Problem statement
 
@@ -80,7 +80,7 @@ We have not measured time saved or learning gains, and the prototype has not bee
 
 All four tasks go through one function (`generateJson` in `src/lib/ai/provider.ts`). It sends one request with `fetch`, asks the provider for structured JSON output that follows a schema, then parses and validates the reply against the same schema in code. Each task then applies its own checks. The tasks are four separate calls, not chained agents.
 
-OpenAI is used first when its key is set. Google Gemini is the fallback, or the main provider if there is no OpenAI key. The default model ids are `gpt-6-luna` and `gemini-3.5-flash-lite`. They are set in the code, can be changed with environment variables, and are not yet confirmed with a live call.
+OpenAI is used first when its key is set. Google Gemini is the fallback, or the main provider if there is no OpenAI key. The default model ids are `gpt-6-luna` and `gemini-3.5-flash-lite`. They are set in the code and can be changed with environment variables. The Gemini default has been confirmed with live calls; the OpenAI default has not.
 
 ### Task 1: generate an activity (`generate-activity.ts`)
 
@@ -226,7 +226,7 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 
 **Unverified**
 
-- No live call to OpenAI or Gemini has been made. The request formats, default model ids, prompts and the quality of generated activities, grades, summaries and tutor replies are untested against a real model. `npm run check:ai` tests a key in a few seconds.
+- No live call to OpenAI has been made; its request format and default model id are untested against the real service. Gemini has been run live for one full loop with one lesson, which is a single trial, not a measure of quality across lessons. `npm run check:ai` tests a key in a few seconds.
 - The hosted PostgreSQL path and deployment to Vercel have not been tried.
 - AI cost and response time have not been measured. The app logs token counts for each call so they can be.
 - No testing with real users or on a range of phones.
@@ -267,7 +267,7 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 
 | Item | Applies? | Detail |
 |---|---|---|
-| Multi-language support | Yes | The parent summary is written in English and Filipino. The grading prompt accepts answers in English, Filipino or a mix, and the tutor is told to reply in the language of the question. Live-model behaviour is unverified. |
+| Multi-language support | Yes | The parent summary is written in English and Filipino. The grading prompt accepts answers in English, Filipino or a mix, and the tutor is told to reply in the language of the question. In one live trial on Gemini the summary came back in both languages and the tutor answered a Taglish question in Taglish. |
 | Responsible AI | Yes | Teacher review, answer key withheld until submission, confidence flag, teacher override, AI labels, honest sample-mode labels, prompt-injection handling (section 7). |
 | Data privacy | Partly | Minimal data, sample data only, no prompts or keys in logs, `store: false` on OpenAI requests. There is no real authentication yet. |
 | Accessibility | Basics only | Labelled form fields, visible keyboard focus, errors announced to screen readers, touch targets of at least 40 px, the Filipino summary marked with its language. No audit has been done. |

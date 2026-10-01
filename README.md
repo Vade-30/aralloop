@@ -148,7 +148,7 @@ Sample output says what it is. The header shows "Sample mode · no AI key". Labe
 
 ## Known limitations
 
-- **No live AI call has been made yet.** No API key was available on the development machine. The requests to OpenAI and Gemini are tested against mocked responses only. The default model ids in the code have not been confirmed with a real call. Run `npm run check:ai` after adding a key.
+- **Only Gemini has been run live.** One full loop (activity draft, grading, tutor, parent summary) was run with a Gemini key and the default model `gemini-3.5-flash-lite` on 2026-10-02, and all four tasks worked. OpenAI has not been called: its requests are tested against mocked responses only, and its default model id is unconfirmed. Run `npm run check:ai` after adding a key.
 - **The hosted database path has not been run.** Only the embedded database has been used.
 - **Sign-in is a prototype.** Anyone who opens the site can choose any sample account, including the teacher. There are no passwords, and the cookie holds a plain user id. Do not put real student data in it.
 - **One class.** The sample data has one class with a join code, but there is no screen to create a class, add users or join with the code.
