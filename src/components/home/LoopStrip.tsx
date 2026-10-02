@@ -1,5 +1,6 @@
-// The strip on the first screen that shows the loop in five steps, from the
-// teacher's lesson to the parent's summary. It has no hooks, so it renders on
+// The strip on the first screen that shows the five steps of one lesson, from
+// the teacher's lesson to the parent's summary. The "loop" is the three people
+// kept in the loop on that lesson; results do not feed the next activity. It has no hooks, so it renders on
 // the server. Its keyframes come from HomeMotion.
 //
 // Each step wears the colour of the account that does it, the same colour as
@@ -9,13 +10,12 @@
 
 import {
   BookOpenText,
-  ChevronUp,
   HeartHandshake,
   MessageSquareText,
   PencilLine,
-  Repeat2,
   ShieldCheck,
   Sparkles,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import { Badge, Card, cn } from "@/components/ui";
@@ -88,13 +88,13 @@ export function LoopStrip({ className }: { className?: string }) {
     <Card
       className={cn(
         // Positioned, so it can overlap a PageHeader with `overlap`.
-        "relative animate-rise lg:grid lg:grid-cols-[11.5rem_minmax(0,1fr)] lg:gap-6 lg:pb-7",
+        "relative animate-rise lg:grid lg:grid-cols-[11.5rem_minmax(0,1fr)] lg:gap-6",
         className,
       )}
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 lg:mb-0 lg:flex-col lg:items-start lg:justify-center lg:gap-2 lg:border-r-2 lg:border-dashed lg:border-line lg:pr-5">
         <h2 className="text-lg font-extrabold leading-tight text-ink sm:text-xl lg:text-2xl">
-          How the loop works
+          Everyone in the loop
         </h2>
         <Badge tone="brand">
           <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
@@ -157,18 +157,12 @@ export function LoopStrip({ className }: { className?: string }) {
           </ol>
         </div>
 
-        {/* What makes it a loop: a line from under the last step back to the
-            first. It has the room it needs only on a wide screen. */}
-        <p className="relative mx-[10%] mt-2.5 hidden h-4 rounded-b-2xl border-x-2 border-b-2 border-dashed border-brand-200 lg:block">
-          <ChevronUp
-            className="absolute -left-[9px] -top-2.5 h-4 w-4 text-brand-300"
-            strokeWidth={3}
-            aria-hidden="true"
-          />
-          <span className="absolute left-1/2 top-full inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-2.5 text-xs font-extrabold text-muted">
-            <Repeat2 className="h-3.5 w-3.5 text-brand-500" aria-hidden="true" />
-            Results go back to the teacher
-          </span>
+        {/* What the name means: all three people follow the same lesson and
+            the same result. There is no line back to the first step, because
+            the teacher, not the app, decides what to teach next. */}
+        <p className="mt-4 hidden items-center justify-center gap-1.5 text-xs font-extrabold text-muted lg:flex">
+          <UsersRound className="h-3.5 w-3.5 flex-none text-brand-500" aria-hidden="true" />
+          Teacher, student and parent see the same lesson and the same result
         </p>
       </div>
     </Card>
