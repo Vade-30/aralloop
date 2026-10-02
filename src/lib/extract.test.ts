@@ -259,8 +259,22 @@ describe("rejected files", () => {
     for (const name of ["slides.pptx", "old.doc", "photo.jpg", "no-extension"]) {
       const error = await extractError(name, utf8(LESSON));
       expect(error.userMessage).toMatch(/not supported/);
-      for (const extension of SUPPORTED_EXTENSIONS) {
+      for (const extension of [".txt", ".md", ".pdf", ".docx"]) {
         expect(error.userMessage).toContain(extension);
+      }
+      // No photo reader was given, so photos are not offered.
+      expect(error.userMessage).not.toContain(".png");
+    }
+  });
+
+  it("lists the photo types too when photos can be read", async () => {
+    try {
+      await extractLessonText("slides.pptx", utf8(LESSON), async () => ({ title: "", text: "" }));
+      throw new Error("Expected slides.pptx to be rejected.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ExtractError);
+      for (const extension of SUPPORTED_EXTENSIONS) {
+        expect((error as ExtractError).userMessage).toContain(extension);
       }
     }
   });
@@ -281,6 +295,62 @@ describe("rejected files", () => {
   it("rejects a file over the upload limit", async () => {
     const error = await extractError("big.txt", new Uint8Array(LIMITS.uploadMaxBytes + 1));
     expect(error.userMessage).toMatch(/larger than 4 MB/);
+  });
+});
+
+describe("photos", () => {
+  const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+
+  it("hands the photo to the reader with its media type and cleans what comes back", async () => {
+    const seen: { mimeType: string; data: Uint8Array }[] = [];
+    const result = await extractLessonText("IMG_2041.JPG", bytes, async (image) => {
+      seen.push(image);
+      return { title: "  Photosynthesis\n", text: `${LESSON}  \r\n\r\n\r\n\r\nLast line.` };
+    });
+    expect(seen).toEqual([{ mimeType: "image/jpeg", data: bytes }]);
+    expect(result).toEqual({
+      title: "Photosynthesis",
+      text: `${LESSON}\n\nLast line.`,
+      truncated: false,
+    });
+  });
+
+  it("knows the media type of every photo type", async () => {
+    const types: string[] = [];
+    for (const name of ["a.jpeg", "a.png", "a.webp", "a.heic", "a.heif"]) {
+      await extractLessonText(name, bytes, async (image) => {
+        types.push(image.mimeType);
+        return { title: "", text: LESSON };
+      });
+    }
+    expect(types).toEqual(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+  });
+
+  it("falls back to the file name when the photo shows no heading", async () => {
+    const result = await extractLessonText("water-cycle.png", bytes, async () => ({
+      title: "",
+      text: LESSON,
+    }));
+    expect(result.title).toBe("water cycle");
+  });
+
+  it("rejects a photo with no readable text", async () => {
+    try {
+      await extractLessonText("blurry.png", bytes, async () => ({ title: "", text: "" }));
+      throw new Error("Expected blurry.png to be rejected.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ExtractError);
+      expect((error as ExtractError).userMessage).toMatch(/could not read enough text in this photo/);
+    }
+  });
+
+  it("passes on a failure of the reader", async () => {
+    const failure = new Error("the service is down");
+    await expect(
+      extractLessonText("page.png", bytes, async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
   });
 });
 

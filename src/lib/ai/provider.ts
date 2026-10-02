@@ -63,10 +63,18 @@ export const AI_RETRY_WAIT_MS = 1_500;
 
 export type JsonSchema = { [key: string]: unknown };
 
+/** A picture sent to the model together with the user text. */
+export interface ProviderImage {
+  /** "image/jpeg", "image/png", "image/webp", "image/heic" or "image/heif". */
+  mimeType: string;
+  base64: string;
+}
+
 export interface ProviderCall {
   task: string;
   system: string;
   user: string;
+  images?: ProviderImage[];
   /** Straight from zod; each provider adapts it to what its API accepts. */
   jsonSchema: JsonSchema;
   model: string;
@@ -183,6 +191,8 @@ export interface GenerateJsonOptions<T> {
   task: string;
   system: string;
   user: string;
+  /** Pictures the model should look at, sent after the user text. */
+  images?: ProviderImage[];
   /** The output is parsed and validated with this schema before returning. */
   schema: z.ZodType<T>;
   maxOutputTokens?: number;
@@ -266,6 +276,7 @@ async function callOnce<T>(
         task: options.task,
         system: options.system,
         user: options.user,
+        images: options.images,
         jsonSchema,
         model,
         apiKey,

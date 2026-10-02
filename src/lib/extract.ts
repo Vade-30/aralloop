@@ -1,14 +1,44 @@
-// Turns an uploaded lesson file (.txt, .md, .pdf or .docx) into clean plain
-// text plus a suggested title. Runs on the server only: the PDF and Word
+// Turns an uploaded lesson file (.txt, .md, .pdf, .docx or a photo) into clean
+// plain text plus a suggested title. Runs on the server only: the PDF and Word
 // parsers are Node packages (see serverExternalPackages in next.config.ts).
+// A photo is read by whatever ImageReader the caller passes in (the API route
+// passes the AI), so this file itself never calls a model.
 
 import mammoth from "mammoth";
 import { extractText } from "unpdf";
 import { LIMITS } from "./contracts";
 
+/** Photo types a teacher can upload, with the media type sent to the reader. */
+export const IMAGE_MIME_TYPES = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+} as const;
+type ImageExtension = keyof typeof IMAGE_MIME_TYPES;
+
 /** File types a teacher can upload as a lesson. */
-export const SUPPORTED_EXTENSIONS = [".txt", ".md", ".pdf", ".docx"] as const;
+export const SUPPORTED_EXTENSIONS = [
+  ".txt",
+  ".md",
+  ".pdf",
+  ".docx",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".heic",
+  ".heif",
+] as const;
 type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number];
+
+/** Reads the lesson text, and its heading if it shows one, from a photo. */
+export type ImageReader = (image: {
+  mimeType: string;
+  data: Uint8Array;
+}) => Promise<{ title: string; text: string }>;
 
 export class ExtractError extends Error {
   /** Safe to show to the user. */
@@ -24,6 +54,10 @@ const PASTE_INSTEAD = "paste the lesson text instead";
 
 function isSupported(extension: string): extension is SupportedExtension {
   return (SUPPORTED_EXTENSIONS as readonly string[]).includes(extension);
+}
+
+function isImage(extension: string): extension is ImageExtension {
+  return Object.hasOwn(IMAGE_MIME_TYPES, extension);
 }
 
 /** Splits "C:\\notes\\My-lesson.PDF" into "My-lesson" and ".pdf". */
@@ -151,15 +185,18 @@ function cutToLimit(text: string, max: number): { text: string; truncated: boole
 /**
  * Pulls the plain text out of an uploaded lesson file. Throws ExtractError
  * for an unsupported type, an unreadable file, or a file with no text (for
- * example a scanned PDF).
+ * example a scanned PDF). Photos are accepted only when readImage is given;
+ * whatever it throws is passed on.
  */
 export async function extractLessonText(
   fileName: string,
   data: Uint8Array,
+  readImage?: ImageReader,
 ): Promise<{ title: string; text: string; truncated: boolean }> {
   const { stem, extension } = splitFileName(fileName);
-  if (!isSupported(extension)) {
-    const supported = `${SUPPORTED_EXTENSIONS.slice(0, -1).join(", ")} or ${SUPPORTED_EXTENSIONS.at(-1)}`;
+  if (!isSupported(extension) || (isImage(extension) && !readImage)) {
+    const accepted = SUPPORTED_EXTENSIONS.filter((each) => readImage || !isImage(each));
+    const supported = `${accepted.slice(0, -1).join(", ")} or ${accepted.at(-1)}`;
     throw new ExtractError(
       `This file type is not supported. Upload a ${supported} file, or ${PASTE_INSTEAD}.`,
     );
@@ -172,18 +209,30 @@ export async function extractLessonText(
   }
 
   let raw: string;
-  if (extension === ".pdf") raw = await readPdf(data);
+  // A camera names its files "IMG_2041", so the heading in the photo is the
+  // better title when there is one.
+  let heading = "";
+  if (isImage(extension) && readImage) {
+    const read = await readImage({ mimeType: IMAGE_MIME_TYPES[extension], data });
+    raw = read.text;
+    heading = cleanText(read.title).replace(/\s+/g, " ");
+  } else if (extension === ".pdf") raw = await readPdf(data);
   else if (extension === ".docx") raw = await readDocx(data);
   else raw = decodePlainText(data);
 
   const cleaned = cleanText(raw);
   if (cleaned.length < LIMITS.lessonContentMin) {
     throw new ExtractError(
-      extension === ".pdf"
-        ? `We could not find enough text in this PDF. Scanned pages are images, so their text cannot be read. Type or ${PASTE_INSTEAD}.`
-        : `This file has too little text to make an activity from. A lesson needs at least ${LIMITS.lessonContentMin} characters. Add more text, or ${PASTE_INSTEAD}.`,
+      isImage(extension)
+        ? `We could not read enough text in this photo. Take it again in good light, with the whole page in view and the words sharp, or ${PASTE_INSTEAD}.`
+        : extension === ".pdf"
+          ? `We could not find enough text in this PDF. Scanned pages are images, so their text cannot be read here. Upload a photo of the page, or ${PASTE_INSTEAD}.`
+          : `This file has too little text to make an activity from. A lesson needs at least ${LIMITS.lessonContentMin} characters. Add more text, or ${PASTE_INSTEAD}.`,
     );
   }
 
-  return { title: titleFrom(stem), ...cutToLimit(cleaned, LIMITS.lessonContentMax) };
+  return {
+    title: titleFrom(heading || stem),
+    ...cutToLimit(cleaned, LIMITS.lessonContentMax),
+  };
 }

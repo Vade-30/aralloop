@@ -159,7 +159,7 @@ describe("new lesson", () => {
     for (const label of [
       "Lesson title",
       "Lesson text",
-      "Upload a file instead",
+      "Upload a file or a photo instead",
       "Number of items",
       "Format",
       "Let the AI choose (recommended)",

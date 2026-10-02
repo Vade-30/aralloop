@@ -76,7 +76,20 @@ function buildBody(call: ProviderCall, schema: JsonSchema, extras: Extras): Json
   const body: JsonSchema = {
     model: call.model,
     instructions: call.system,
-    input: call.user,
+    input: call.images?.length
+      ? [
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: call.user },
+              ...call.images.map((image) => ({
+                type: "input_image",
+                image_url: `data:${image.mimeType};base64,${image.base64}`,
+              })),
+            ],
+          },
+        ]
+      : call.user,
     text: {
       format: { type: "json_schema", name: schemaName(call.task), schema, strict: true },
     },

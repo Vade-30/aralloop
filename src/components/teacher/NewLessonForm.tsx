@@ -26,9 +26,42 @@ import {
 } from "./GenerateOptions";
 import { LessonGenerating } from "./LessonGenerating";
 
-const ACCEPTED_FILES = ".txt,.md,.pdf,.docx";
+const ACCEPTED_FILES = ".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,.heic,.heif";
 const UPLOAD_MAX_MB = Math.round(LIMITS.uploadMaxBytes / (1024 * 1024));
 const count = new Intl.NumberFormat("en-PH");
+
+const PHOTO_PATTERN = /\.(jpe?g|png|webp|heic|heif)$/i;
+/** Long side of a photo after shrinking. Printed text stays easy to read. */
+const PHOTO_MAX_EDGE = 2000;
+
+/**
+ * Phone photos are often larger than the upload limit. This makes one smaller
+ * in the browser before it is sent, which also makes the upload faster. A
+ * photo the browser cannot open (HEIC outside Safari) is sent as it is.
+ */
+async function shrinkPhoto(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+    // JPEG has no transparency; without this a clear background turns black.
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.85),
+    );
+    if (!blob || (scale === 1 && blob.size >= file.size)) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
 
 /** Card heading with the number of the step in front. */
 function StepHeading({ step, children }: { step: number; children: ReactNode }) {
@@ -56,6 +89,10 @@ export function NewLessonForm() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadNote, setUploadNote] = useState<string | null>(null);
+  /** The file being read is a photo, which takes the AI a few seconds. */
+  const [readingPhoto, setReadingPhoto] = useState(false);
+  /** Preview of the photo the text was read from. */
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   /** A file is being dragged over the upload area. Changes its looks only. */
   const [dragging, setDragging] = useState(false);
 
@@ -76,19 +113,25 @@ export function NewLessonForm() {
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const input = event.target;
-    const file = input.files?.[0];
-    if (!file) return;
+    const picked = input.files?.[0];
+    if (!picked) return;
+    const isPhoto = PHOTO_PATTERN.test(picked.name);
     setUploadError(null);
     setUploadNote(null);
-    if (file.size > LIMITS.uploadMaxBytes) {
-      setUploadError(
-        `This file is larger than ${UPLOAD_MAX_MB} MB. Choose a smaller file or paste the text.`,
-      );
-      input.value = "";
-      return;
-    }
+    setPhotoUrl((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return null;
+    });
+    setReadingPhoto(isPhoto);
     setUploading(true);
     try {
+      const file = isPhoto ? await shrinkPhoto(picked) : picked;
+      if (file.size > LIMITS.uploadMaxBytes) {
+        setUploadError(
+          `This file is larger than ${UPLOAD_MAX_MB} MB. Choose a smaller file or paste the text.`,
+        );
+        return;
+      }
       const formData = new FormData();
       formData.append("file", file);
       const result = await api<ExtractResponse>("/api/lessons/extract", {
@@ -100,10 +143,15 @@ export function NewLessonForm() {
         setTitle(result.title.slice(0, LIMITS.lessonTitleMax));
         setTitleTyped(false);
       }
+      // Shown beside the note so the teacher can compare the text with the page.
+      // Not HEIC: only Safari can show it.
+      if (isPhoto && !/\.hei[cf]$/i.test(file.name)) setPhotoUrl(URL.createObjectURL(file));
       setUploadNote(
         result.truncated
-          ? `Text read from ${file.name}. The file was longer than ${count.format(LIMITS.lessonContentMax)} characters, so only the first part was kept.`
-          : `Text read from ${file.name}. Check it below before generating.`,
+          ? `Text read from ${picked.name}. The file was longer than ${count.format(LIMITS.lessonContentMax)} characters, so only the first part was kept.`
+          : isPhoto
+            ? `The AI read this text from ${picked.name}. It can misread a word, so check it against the page before generating.`
+            : `Text read from ${picked.name}. Check it above before generating.`,
       );
     } catch (caught) {
       setUploadError(errorMessage(caught));
@@ -248,7 +296,7 @@ export function NewLessonForm() {
 
         <div>
           <label htmlFor="lesson-file" className="mb-1.5 block text-sm font-extrabold text-ink">
-            Upload a file instead
+            Upload a file or a photo instead
           </label>
           {/* The file input is real and covers the whole area, invisibly, so a
               click, a key press and a dropped file all reach it. */}
@@ -274,8 +322,8 @@ export function NewLessonForm() {
                 {dragging ? "Drop the file to read it" : "Choose a file or drop it here"}
               </p>
               <p id="lesson-file-hint" className="mt-0.5 text-xs font-semibold text-muted">
-                Text, Markdown, PDF or Word file, up to {UPLOAD_MAX_MB} MB. Its text replaces what
-                is in the box above.
+                Text, Markdown, PDF or Word file up to {UPLOAD_MAX_MB} MB, or a photo of the
+                lesson page. Its text replaces what is in the box above.
               </p>
             </div>
             <input
@@ -294,12 +342,28 @@ export function NewLessonForm() {
           {uploading && (
             <p role="status" className="mt-2 flex items-center gap-2 text-sm font-bold text-ink">
               <Spinner className="h-4 w-4 text-brand-600" />
-              Reading the file.
+              {readingPhoto ? "The AI is reading the photo. This takes a few seconds." : "Reading the file."}
             </p>
           )}
           {uploadNote && !uploading && (
             <Alert tone="info" className="mt-2 animate-pop break-words">
               {uploadNote}
+              {photoUrl && (
+                <a
+                  href={photoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 block w-fit rounded-xl border-2 border-line bg-white p-1"
+                >
+                  {/* A local preview of the teacher's own file; nothing to optimise. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photoUrl}
+                    alt="The photo the text was read from. Opens full size in a new tab."
+                    className="max-h-40 rounded-lg"
+                  />
+                </a>
+              )}
             </Alert>
           )}
           {uploadError && (

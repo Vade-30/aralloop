@@ -1,12 +1,26 @@
 // POST /api/lessons/extract — pulls the text out of an uploaded lesson file
 // (multipart/form-data, field "file") so the teacher can review it before
-// saving. Nothing is stored here.
+// saving. A photo of a lesson is read by the AI. Nothing is stored here.
 
+import { readLessonImage } from "@/lib/ai";
 import { LIMITS, type ExtractResponse } from "@/lib/contracts";
-import { ExtractError, extractLessonText } from "@/lib/extract";
+import { ExtractError, extractLessonText, type ImageReader } from "@/lib/extract";
 import { ApiError, badRequest, requireUser, route } from "@/lib/http";
 
+// Reading a photo is an AI call.
+export const maxDuration = 60;
+
 const LIMIT_IN_MB = LIMITS.uploadMaxBytes / (1024 * 1024);
+
+const readImage: ImageReader = async (image) => {
+  const result = await readLessonImage(image);
+  if (result === null) {
+    throw new ExtractError(
+      "A photo can only be read when the AI service is set up, and AralLoop is running in sample mode. Type or paste the lesson text instead.",
+    );
+  }
+  return result.data;
+};
 
 const tooLarge = () =>
   new ApiError(
@@ -48,6 +62,7 @@ export const POST = route(async (request): Promise<ExtractResponse> => {
     const { title, text, truncated } = await extractLessonText(
       file.name,
       new Uint8Array(await file.arrayBuffer()),
+      readImage,
     );
     return { title, text, truncated };
   } catch (error) {

@@ -67,9 +67,14 @@ function buildBody(call: ProviderCall, legacyFields: boolean): JsonSchema {
     generationConfig.temperature = call.temperature;
   }
 
+  const parts: JsonSchema[] = [{ text: call.user }];
+  for (const image of call.images ?? []) {
+    parts.push({ inlineData: { mimeType: image.mimeType, data: image.base64 } });
+  }
+
   return {
     systemInstruction: { parts: [{ text: call.system }] },
-    contents: [{ role: "user", parts: [{ text: call.user }] }],
+    contents: [{ role: "user", parts }],
     generationConfig,
   };
 }

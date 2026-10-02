@@ -430,6 +430,27 @@ describe("generateJson with Gemini", () => {
     });
   });
 
+  it("sends a picture as inline data after the user text", async () => {
+    fetchMock.mockResolvedValueOnce(geminiOk(QUIZ));
+    await generateJson({
+      task: "quiz",
+      system: "You write short quizzes.",
+      user: "Write a quiz about this page.",
+      images: [{ mimeType: "image/jpeg", base64: "QUJD" }],
+      schema: quizSchema,
+    });
+
+    expect(requestAt(0).body.contents).toEqual([
+      {
+        role: "user",
+        parts: [
+          { text: "Write a quiz about this page." },
+          { inlineData: { mimeType: "image/jpeg", data: "QUJD" } },
+        ],
+      },
+    ]);
+  });
+
   it.each(["gemini-3-pro", "models/gemini-3.5-flash-lite", "gemini-flash-latest"])(
     "leaves the temperature at the model's default for %s",
     async (model) => {

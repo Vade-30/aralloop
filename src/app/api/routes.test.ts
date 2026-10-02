@@ -241,9 +241,14 @@ describe("teacher: lesson, draft, publish", () => {
     expect(read.status).toBe(200);
     expect(read.body).toEqual({ title: "the water cycle", text: LONG_ENOUGH, truncated: false });
 
+    const slides = await upload("slides.pptx", LONG_ENOUGH);
+    expect(slides.status).toBe(400);
+    expect(slides.error?.message).toMatch(/not supported/);
+
+    // A photo needs a model that can see; the sample mode has none.
     const picture = await upload("photo.png", LONG_ENOUGH);
     expect(picture.status).toBe(400);
-    expect(picture.error?.message).toMatch(/not supported/);
+    expect(picture.error?.message).toMatch(/sample mode/);
 
     expect((await upload("empty.txt", "")).status).toBe(400);
     expect((await call(extractRoute, { as: TEACHER, formData: new FormData() })).status).toBe(400);
