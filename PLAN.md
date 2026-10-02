@@ -171,7 +171,7 @@ language toggle → parent summary. Steps 1–5 of the loop are the minimum demo
 
 | Criterion | Weight | What to show |
 |---|---|---|
-| Innovation & Creativity | 25% | The closed loop that includes the parent, not a standalone quiz generator or chatbot. |
+| Innovation & Creativity | 25% | Teacher, student and parent kept in the loop on the same lesson, not a standalone quiz generator or chatbot. |
 | Educational Impact | 25% | Feedback in seconds instead of days; parents know what to practise. |
 | AI Integration | 20% | Three distinct AI uses, each with a reason; AI picks the activity format. |
 | Technical Implementation | 15% | Structured output, code-based grading for objective items, stored results. |

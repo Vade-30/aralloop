@@ -20,8 +20,8 @@ Assign the three roles before you rehearse.
 |---|---|---|---|
 | 0:00 | 1 Cover | A | Who we are and what AralLoop does |
 | 0:15 | 2 The problem | A | Teacher, student and parent all lose out |
-| 0:30 | 3 The solution | A | One loop, and the teacher approves every step |
-| 0:38 | 4 The loop | A | Yellow is AI, blue is the teacher |
+| 0:30 | 3 The solution | A | Everyone is kept in the loop, and the teacher approves every step |
+| 0:38 | 4 The seven steps | A | Yellow is AI, blue is the teacher |
 | 0:45 | 5 Live demo | B and C | Teacher, student, teacher, parent |
 | 3:25 | 6 Where AI is used | C | Four AI jobs, each checked by code |
 | 3:45 | 7 Why AI is needed | C | Language tasks that forms cannot do |
@@ -42,9 +42,9 @@ Assign the three roles before you rehearse.
 
 ### 0:30 · Slide 3, the solution · Speaker A
 
-> AralLoop closes that gap in one loop, and the teacher approves every step.
+> AralLoop keeps all three in the loop on every lesson, and the teacher approves every step.
 
-### 0:38 · Slide 4, the loop · Speaker A
+### 0:38 · Slide 4, the seven steps · Speaker A
 
 > Yellow is where AI works. Blue is where the teacher decides. Let us show you.
 
@@ -108,7 +108,7 @@ Skip slide 11 and go straight to slide 12.
 
 ### 4:40 · Slide 12, thank you · Speaker A
 
-> AralLoop: one loop, with the teacher in control. Thank you.
+> AralLoop: teacher, student and parent in the loop, with the teacher in control. Thank you.
 
 ## If you are running late
 
@@ -152,4 +152,5 @@ Keep each answer short and let the judge ask a follow-up.
 | Does it work offline? | No. The AI steps need a connection. Say it is future work. |
 | What about privacy? | Only a name, a role and scores are stored, and the prototype uses sample data. |
 | Why not just use ChatGPT? | A chat window gives a teacher a quiz. It does not deliver it to a class, collect answers, grade them, or tell the parent. |
+| Why is it called a loop? | It keeps the teacher, the student and the parent in the loop on the same lesson and the same result. Be upfront that results do not yet create the next activity automatically: the teacher reads the item analysis and decides what to reteach. |
 | What comes next? | School sign-in and class lists, a link to the school's gradebook, and more languages such as Kapampangan. |

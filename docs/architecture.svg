@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="svg-title svg-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
   <title id="svg-title">AralLoop system architecture</title>
-  <desc id="svg-desc">Four parts. The browser, built with React and Tailwind CSS, shows the teacher, student and parent screens. It talks to a Next.js server written in TypeScript, which serves the pages and API routes, reads lesson files, grades objective items in code and validates every AI reply. The server calls an AI service, Google Gemini, and stores data in PostgreSQL.</desc>
+  <desc id="svg-desc">Four parts. The browser, built with React and Tailwind CSS, shows the teacher, student and parent screens. It talks to a Next.js server written in TypeScript, which serves the pages and API routes, reads lesson files, grades objective items in code and validates every AI reply. The server calls an AI service, Google Gemini, which also reads a lesson from a photo, and stores data in PostgreSQL.</desc>
   <defs>
     <linearGradient id="gemini" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0" stop-color="#4285f4"/>
@@ -79,7 +79,7 @@
   <rect x="514" y="316" width="252" height="44" rx="12" fill="#ffffff"/>
   <text x="640" y="344" font-size="16" fill="#1e3084" text-anchor="middle">Pages and API routes</text>
   <rect x="514" y="370" width="252" height="44" rx="12" fill="#ffffff"/>
-  <text x="640" y="398" font-size="16" fill="#1e3084" text-anchor="middle">Reads PDF, Word, text files</text>
+  <text x="640" y="398" font-size="16" fill="#1e3084" text-anchor="middle">Reads PDF, Word, text, photos</text>
   <rect x="514" y="424" width="252" height="44" rx="12" fill="#ffffff"/>
   <text x="640" y="452" font-size="16" fill="#1e3084" text-anchor="middle">Objective grading in code</text>
   <rect x="514" y="478" width="252" height="44" rx="12" fill="#ffffff"/>
@@ -94,7 +94,8 @@
   </g>
   <text x="1090" y="254" font-size="22" font-weight="700" fill="#1e3084" text-anchor="middle">AI service</text>
   <text x="1090" y="280" font-size="16" fill="#44506e" text-anchor="middle">Google Gemini API</text>
-  <text x="1090" y="310" font-size="16" fill="#1e3084" text-anchor="middle">Drafts, grades, summarises, tutors</text>
+  <text x="1090" y="302" font-size="16" fill="#1e3084" text-anchor="middle">Reads lesson photos, drafts,</text>
+  <text x="1090" y="324" font-size="16" fill="#1e3084" text-anchor="middle">grades, summarises, tutors</text>
 
   <!-- 4. Database -->
   <rect x="940" y="360" width="300" height="200" rx="18" fill="#dbe7fe" stroke="#2549e6" stroke-width="2"/>
@@ -110,6 +111,6 @@
   <text x="1090" y="530" font-size="16" fill="#1e3084" text-anchor="middle">Embedded locally or hosted</text>
 
   <!-- Caption -->
-  <text x="640" y="620" font-size="18" font-weight="700" fill="#1e3084" text-anchor="middle">AI is used only where meaning must be judged: drafting, written answers, parent summaries and the tutor.</text>
+  <text x="640" y="620" font-size="18" font-weight="700" fill="#1e3084" text-anchor="middle">AI is used only where code cannot do the work: lesson photos, drafting, written answers, parent summaries, the tutor.</text>
   <text x="640" y="650" font-size="16" fill="#44506e" text-anchor="middle">Multiple choice, true or false and exact answers are checked by code. The teacher approves every activity and can change any score.</text>
 </svg>
