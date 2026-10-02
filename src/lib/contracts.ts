@@ -35,6 +35,8 @@ export const LIMITS = {
   // Vercel refuses request bodies over about 4.5 MB before the route runs, so
   // the limit stays under that and the teacher gets our own clear message.
   uploadMaxBytes: 4 * 1024 * 1024,
+  /** Most files read into one lesson. Each is sent as its own request. */
+  uploadMaxFiles: 10,
 } as const;
 
 export interface ApiErrorBody {

@@ -55,7 +55,7 @@ We have not measured time saved or learning gains, and the prototype has not bee
 **Teacher**
 
 - Dashboard: lessons, their activities, draft or published status, how many students submitted, how many submissions need review.
-- New lesson: paste text or upload a .txt, .md, .pdf or .docx file (up to 4 MB), or a photo of the lesson page, which the AI reads. The extracted text is shown for checking before it is saved.
+- New lesson: paste text or upload .txt, .md, .pdf or .docx files (up to 4 MB each), or photos of the lesson pages, which the AI reads. Up to 10 files can be chosen at once; their text is joined in the order of the file names, and a file that cannot be read is named while the others are kept. The extracted text is shown for checking before it is saved.
 - Generate: choose 3 to 15 items and a format, or let the AI choose the format.
 - Draft editor: shows the AI's reason for the format. Edit the title, instructions and every item; add or remove items; save, publish or delete the draft.
 - Results: number submitted, class average, answers waiting for review, item analysis with a "Most missed" mark, and each answer with how it was graded and the AI's confidence.
@@ -247,7 +247,7 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 - One class. There is no screen to create a class, add users, or join with the join code.
 - One attempt per activity. Published activities cannot be edited.
 - AI needs an internet connection. There is no offline AI.
-- Scanned PDFs cannot be read as files; the teacher uploads a photo instead, one page at a time. The AI reads only about the first 12,000 characters of a long lesson.
+- Scanned PDFs cannot be read as files; the teacher uploads photos of the pages instead, up to 10 at a time. The AI reads only about the first 12,000 characters of a long lesson.
 - The summary has two languages only. Tutor conversations are not stored.
 - AI can grade wrongly. The confidence flag and the teacher override reduce that risk; they do not remove it.
 

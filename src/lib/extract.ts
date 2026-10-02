@@ -7,6 +7,7 @@
 import mammoth from "mammoth";
 import { extractText } from "unpdf";
 import { LIMITS } from "./contracts";
+import { cutToLimit } from "./cut-text";
 
 /** Photo types a teacher can upload, with the media type sent to the reader. */
 export const IMAGE_MIME_TYPES = {
@@ -154,32 +155,6 @@ function cleanText(text: string): string {
       .replace(/\n{3,}/g, "\n\n")
       .trim()
   );
-}
-
-/**
- * Cuts text to max characters, preferably at the end of a paragraph, else at
- * the end of a sentence, else between words.
- */
-function cutToLimit(text: string, max: number): { text: string; truncated: boolean } {
-  if (text.length <= max) return { text, truncated: false };
-
-  const head = text.slice(0, max);
-  const paragraphEnd = head.lastIndexOf("\n\n");
-  let sentenceEnd = -1;
-  for (const match of head.matchAll(/[.!?]["')\]]*(?=\s)/g)) {
-    sentenceEnd = match.index + match[0].length;
-  }
-  const wordEnd = head.search(/\s\S*$/);
-
-  let cut = max;
-  // A boundary is only used if it does not throw away a large part of the text.
-  if (paragraphEnd >= max * 0.8) cut = paragraphEnd;
-  else if (sentenceEnd >= max * 0.5) cut = sentenceEnd;
-  else if (wordEnd >= max * 0.5) cut = wordEnd;
-  // Never leave half of a two-unit character (an emoji) at the end.
-  else if (/[\uD800-\uDBFF]$/.test(head)) cut = max - 1;
-
-  return { text: head.slice(0, cut).trimEnd(), truncated: true };
 }
 
 /**

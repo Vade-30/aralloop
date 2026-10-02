@@ -25,14 +25,22 @@ import {
   requestActivity,
 } from "./GenerateOptions";
 import { LessonGenerating } from "./LessonGenerating";
+import {
+  PHOTO_PATTERN,
+  inNameOrder,
+  joinLessonFiles,
+  uploadNote as noteFor,
+  type ReadLessonFile,
+} from "./lesson-files";
 
 const ACCEPTED_FILES = ".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp,.heic,.heif";
 const UPLOAD_MAX_MB = Math.round(LIMITS.uploadMaxBytes / (1024 * 1024));
 const count = new Intl.NumberFormat("en-PH");
 
-const PHOTO_PATTERN = /\.(jpe?g|png|webp|heic|heif)$/i;
 /** Long side of a photo after shrinking. Printed text stays easy to read. */
 const PHOTO_MAX_EDGE = 2000;
+/** Files sent at the same time. A photo is an AI call, so not all at once. */
+const READ_AT_ONCE = 3;
 
 /**
  * Phone photos are often larger than the upload limit. This makes one smaller
@@ -63,6 +71,57 @@ async function shrinkPhoto(file: File): Promise<File> {
   }
 }
 
+type ReadOutcome =
+  | { ok: true; file: ReadLessonFile; /** The photo to show beside the note. */ preview: File | null }
+  | { ok: false; name: string; message: string };
+
+/**
+ * Sends one file to be read. Each file is its own request, so every one may
+ * be as large as the upload limit and one bad file does not stop the others.
+ */
+async function readFile(picked: File): Promise<ReadOutcome> {
+  const isPhoto = PHOTO_PATTERN.test(picked.name);
+  try {
+    const file = isPhoto ? await shrinkPhoto(picked) : picked;
+    if (file.size > LIMITS.uploadMaxBytes) {
+      return {
+        ok: false,
+        name: picked.name,
+        message: `This file is larger than ${UPLOAD_MAX_MB} MB. Choose a smaller file or paste the text.`,
+      };
+    }
+    const formData = new FormData();
+    formData.append("file", file);
+    const result = await api<ExtractResponse>("/api/lessons/extract", {
+      method: "POST",
+      formData,
+    });
+    return {
+      ok: true,
+      file: { name: picked.name, ...result },
+      // Not HEIC: only Safari can show it.
+      preview: isPhoto && !/\.hei[cf]$/i.test(file.name) ? file : null,
+    };
+  } catch (caught) {
+    return { ok: false, name: picked.name, message: errorMessage(caught) };
+  }
+}
+
+/** Reads the files a few at a time and answers in the order they were given. */
+async function readFiles(files: File[], onRead: () => void): Promise<ReadOutcome[]> {
+  const outcomes = new Array<ReadOutcome>(files.length);
+  let next = 0;
+  async function worker() {
+    while (next < files.length) {
+      const index = next++;
+      outcomes[index] = await readFile(files[index]);
+      onRead();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(READ_AT_ONCE, files.length) }, worker));
+  return outcomes;
+}
+
 /** Card heading with the number of the step in front. */
 function StepHeading({ step, children }: { step: number; children: ReactNode }) {
   return (
@@ -87,12 +146,15 @@ export function NewLessonForm() {
   const [titleTyped, setTitleTyped] = useState(false);
 
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  /** One line for each file that could not be read. */
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [uploadNote, setUploadNote] = useState<string | null>(null);
-  /** The file being read is a photo, which takes the AI a few seconds. */
+  /** A file being read is a photo, which takes the AI a few seconds. */
   const [readingPhoto, setReadingPhoto] = useState(false);
-  /** Preview of the photo the text was read from. */
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  /** How many of the chosen files have been read so far. */
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  /** Previews of the photos the text was read from. */
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   /** A file is being dragged over the upload area. Changes its looks only. */
   const [dragging, setDragging] = useState(false);
 
@@ -111,54 +173,55 @@ export function NewLessonForm() {
   const usedPercent =
     length === 0 ? 0 : Math.min(100, Math.max(2, (length / LIMITS.lessonContentMax) * 100));
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
+  async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const input = event.target;
-    const picked = input.files?.[0];
-    if (!picked) return;
-    const isPhoto = PHOTO_PATTERN.test(picked.name);
-    setUploadError(null);
+    const picked = inNameOrder(Array.from(input.files ?? []));
+    // Lets the teacher pick the same files again after fixing a problem.
+    input.value = "";
+    if (picked.length === 0) return;
+    setUploadErrors([]);
     setUploadNote(null);
-    setPhotoUrl((old) => {
-      if (old) URL.revokeObjectURL(old);
-      return null;
+    setPhotoUrls((old) => {
+      old.forEach((url) => URL.revokeObjectURL(url));
+      return [];
     });
-    setReadingPhoto(isPhoto);
+    if (picked.length > LIMITS.uploadMaxFiles) {
+      setUploadErrors([
+        `You chose ${picked.length} files. Choose up to ${LIMITS.uploadMaxFiles} at a time.`,
+      ]);
+      return;
+    }
+    setReadingPhoto(picked.some((file) => PHOTO_PATTERN.test(file.name)));
+    setProgress({ done: 0, total: picked.length });
     setUploading(true);
     try {
-      const file = isPhoto ? await shrinkPhoto(picked) : picked;
-      if (file.size > LIMITS.uploadMaxBytes) {
-        setUploadError(
-          `This file is larger than ${UPLOAD_MAX_MB} MB. Choose a smaller file or paste the text.`,
-        );
-        return;
-      }
-      const formData = new FormData();
-      formData.append("file", file);
-      const result = await api<ExtractResponse>("/api/lessons/extract", {
-        method: "POST",
-        formData,
-      });
-      setContent(result.text);
+      const outcomes = await readFiles(picked, () =>
+        setProgress((old) => ({ ...old, done: old.done + 1 })),
+      );
+      const read = outcomes.filter((outcome) => outcome.ok);
+      const failed = outcomes.filter((outcome) => !outcome.ok);
+      // One file needs no name in front of its message.
+      setUploadErrors(
+        failed.map((each) => (picked.length === 1 ? each.message : `${each.name}: ${each.message}`)),
+      );
+      if (read.length === 0) return;
+
+      const lesson = joinLessonFiles(read.map((each) => each.file));
+      setContent(lesson.text);
       if (!titleTyped || title.trim() === "") {
-        setTitle(result.title.slice(0, LIMITS.lessonTitleMax));
+        setTitle(lesson.title);
         setTitleTyped(false);
       }
-      // Shown beside the note so the teacher can compare the text with the page.
-      // Not HEIC: only Safari can show it.
-      if (isPhoto && !/\.hei[cf]$/i.test(file.name)) setPhotoUrl(URL.createObjectURL(file));
+      // Shown beside the note so the teacher can compare the text with the pages.
+      setPhotoUrls(read.flatMap((each) => (each.preview ? [URL.createObjectURL(each.preview)] : [])));
       setUploadNote(
-        result.truncated
-          ? `Text read from ${picked.name}. The file was longer than ${count.format(LIMITS.lessonContentMax)} characters, so only the first part was kept.`
-          : isPhoto
-            ? `The AI read this text from ${picked.name}. It can misread a word, so check it against the page before generating.`
-            : `Text read from ${picked.name}. Check it above before generating.`,
+        noteFor(
+          read.map((each) => each.file),
+          lesson.truncated,
+        ),
       );
-    } catch (caught) {
-      setUploadError(errorMessage(caught));
     } finally {
       setUploading(false);
-      // Lets the teacher pick the same file again after fixing a problem.
-      input.value = "";
     }
   }
 
@@ -296,7 +359,7 @@ export function NewLessonForm() {
 
         <div>
           <label htmlFor="lesson-file" className="mb-1.5 block text-sm font-extrabold text-ink">
-            Upload a file or a photo instead
+            Upload files or photos instead
           </label>
           {/* The file input is real and covers the whole area, invisibly, so a
               click, a key press and a dropped file all reach it. */}
@@ -319,20 +382,22 @@ export function NewLessonForm() {
             </span>
             <div className="min-w-0">
               <p className="text-[15px] font-extrabold text-ink">
-                {dragging ? "Drop the file to read it" : "Choose a file or drop it here"}
+                {dragging ? "Drop the files to read them" : "Choose files or drop them here"}
               </p>
               <p id="lesson-file-hint" className="mt-0.5 text-xs font-semibold text-muted">
-                Text, Markdown, PDF or Word file up to {UPLOAD_MAX_MB} MB, or a photo of the
-                lesson page. Its text replaces what is in the box above.
+                Text, Markdown, PDF or Word files up to {UPLOAD_MAX_MB} MB each, or photos of the
+                lesson pages. Up to {LIMITS.uploadMaxFiles} at once, joined in the order of their
+                names. The text replaces what is in the box above.
               </p>
             </div>
             <input
               id="lesson-file"
               type="file"
+              multiple
               accept={ACCEPTED_FILES}
               disabled={lessonLocked}
               aria-describedby="lesson-file-hint"
-              onChange={handleFile}
+              onChange={handleFiles}
               onDragEnter={() => setDragging(true)}
               onDragLeave={() => setDragging(false)}
               onDrop={() => setDragging(false)}
@@ -342,33 +407,62 @@ export function NewLessonForm() {
           {uploading && (
             <p role="status" className="mt-2 flex items-center gap-2 text-sm font-bold text-ink">
               <Spinner className="h-4 w-4 text-brand-600" />
-              {readingPhoto ? "The AI is reading the photo. This takes a few seconds." : "Reading the file."}
+              {progress.total > 1
+                ? `Reading ${progress.total} files: ${progress.done} done.${readingPhoto ? " The AI takes a few seconds on each photo." : ""}`
+                : readingPhoto
+                  ? "The AI is reading the photo. This takes a few seconds."
+                  : "Reading the file."}
             </p>
           )}
           {uploadNote && !uploading && (
             <Alert tone="info" className="mt-2 animate-pop break-words">
               {uploadNote}
-              {photoUrl && (
-                <a
-                  href={photoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 block w-fit rounded-xl border-2 border-line bg-white p-1"
-                >
-                  {/* A local preview of the teacher's own file; nothing to optimise. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photoUrl}
-                    alt="The photo the text was read from. Opens full size in a new tab."
-                    className="max-h-40 rounded-lg"
-                  />
-                </a>
+              {photoUrls.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {photoUrls.map((url, index) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block w-fit rounded-xl border-2 border-line bg-white p-1"
+                    >
+                      {/* A local preview of the teacher's own file; nothing to optimise. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={
+                          photoUrls.length === 1
+                            ? "The photo the text was read from. Opens full size in a new tab."
+                            : `Photo ${index + 1} of ${photoUrls.length} the text was read from. Opens full size in a new tab.`
+                        }
+                        className={cn("rounded-lg", photoUrls.length === 1 ? "max-h-40" : "max-h-28")}
+                      />
+                    </a>
+                  ))}
+                </div>
               )}
             </Alert>
           )}
-          {uploadError && (
-            <Alert tone="danger" className="mt-2">
-              {uploadError}
+          {uploadErrors.length > 0 && !uploading && (
+            <Alert
+              tone="danger"
+              className="mt-2 break-words"
+              title={
+                progress.total > 1 && uploadNote
+                  ? `${uploadErrors.length} of ${progress.total} files could not be read. The text of the others is in the box above.`
+                  : undefined
+              }
+            >
+              {uploadErrors.length === 1 ? (
+                uploadErrors[0]
+              ) : (
+                <ul className="list-disc space-y-1 pl-5">
+                  {uploadErrors.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              )}
             </Alert>
           )}
         </div>
