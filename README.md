@@ -9,7 +9,7 @@ It is a prototype built for the RAITE 2026 hackathon (theme: "Transforming Educa
 
 ## The loop
 
-1. A teacher pastes a lesson or uploads a file (.txt, .md, .pdf or .docx).
+1. A teacher pastes a lesson or uploads a file (.txt, .md, .pdf or .docx) or a photo of the lesson page, which the AI reads.
 2. AI drafts an activity. It chooses the format, writes the items, the answer key and a rubric for short answers, and says why it chose that format.
 3. The teacher edits the draft and publishes it. Students see nothing before that.
 4. A student answers the activity once.
@@ -27,7 +27,7 @@ npm install
 cp .env.example .env.local     # Windows: copy .env.example .env.local
 ```
 
-Open `.env.local` and add one AI key: `OPENAI_API_KEY` or `GEMINI_API_KEY`. Then:
+Open `.env.local` and add your Google Gemini key as `GEMINI_API_KEY`. Then:
 
 ```bash
 npm run check:ai               # makes one small call per key and says if it worked
@@ -62,12 +62,9 @@ All are optional. Copy `.env.example` to `.env.local` and fill in what you have.
 
 | Variable | What it does |
 |---|---|
-| `OPENAI_API_KEY` | OpenAI key. OpenAI is used first when this is set. |
-| `OPENAI_MODEL` | OpenAI model id. Default: `gpt-6-luna` (set in `src/lib/ai/openai.ts`). |
-| `OPENAI_REASONING_EFFORT` | How much the OpenAI model reasons before answering: `none`, `low`, `medium` or `high`. Default: `low`. |
-| `GEMINI_API_KEY` | Google Gemini key. Gemini is the fallback when OpenAI fails, or the main provider if there is no OpenAI key. |
+| `GEMINI_API_KEY` | Google Gemini key. Without it the app runs in sample mode. |
 | `GEMINI_MODEL` | Gemini model id. Default: `gemini-3.5-flash-lite` (set in `src/lib/ai/gemini.ts`). |
-| `AI_PROVIDER` | Forces one provider: `openai`, `gemini` or `mock`. A forced provider has no fallback. If its key is missing, the app uses sample mode. |
+| `AI_PROVIDER` | Forces the provider: `gemini` or `mock`. If the Gemini key is missing, the app uses sample mode. |
 | `DATABASE_URL` | PostgreSQL connection string for a hosted database such as Supabase. Empty means the embedded database. |
 | `PGLITE_DIR` | Folder for the embedded database. Default: `.data/pglite`. `memory` keeps nothing on disk. |
 | `ALLOW_DEMO_RESET` | Set to `false` to turn off "Reset sample data". The reset needs no sign-in and deletes everything, so set this to `false` on any site that other people can open. Leave it unset only on your own machine. |
@@ -82,7 +79,7 @@ All are optional. Copy `.env.example` to `.env.local` and fill in what you have.
 | `npm run lint` | Runs ESLint. |
 | `npm run typecheck` | Generates Next.js route types, then runs the TypeScript compiler without output. |
 | `npm test` | Runs the automated tests with Vitest. They use an in-memory database and never call a real AI service. |
-| `npm run check:ai` | Prints which provider and model the app will use (never the key), makes one small real call to each provider that has a key, and says what to fix if a call fails. |
+| `npm run check:ai` | Prints which provider and model the app will use (never the key), makes one small real call with the configured key, and says what to fix if a call fails. |
 
 ## Project structure
 
@@ -99,12 +96,12 @@ src/
     types.ts                 domain types shared by every layer
     contracts.ts             request schemas (zod), response types and size limits
     grading.ts               checks objective items by code, sends the rest to AI in one call
-    extract.ts               reads lesson text from .txt, .md, .pdf and .docx files
+    extract.ts               reads lesson text from .txt, .md, .pdf, .docx files and photos
     session.ts               prototype sign-in: a cookie with a sample user id
     http.ts                  route wrapper: validation, role checks, error responses
     ai/
       provider.ts            picks the provider, timeout, retry, fallback, output validation
-      openai.ts, gemini.ts   one structured-output request each, sent with fetch
+      gemini.ts              one structured-output request, sent with fetch
       generate-activity.ts   AI task 1: lesson to draft activity
       grade.ts               AI task 2: grade free-text answers
       parent-summary.ts      AI task 3: summary in English and Filipino
@@ -126,7 +123,7 @@ docs/                        project documentation and architecture diagram
 
 1. Create a Supabase project. Copy the connection string from Project Settings, Database, Connection string, Transaction pooler.
 2. Import the repository into Vercel.
-3. Set the environment variables in Vercel: `DATABASE_URL` (the Supabase string), `OPENAI_API_KEY` and/or `GEMINI_API_KEY`, and `ALLOW_DEMO_RESET=false`. Anyone who has the link can open a deployed site, and "Reset sample data" needs no sign-in, so without this setting one tap by a visitor deletes a lesson made during a demo.
+3. Set the environment variables in Vercel: `DATABASE_URL` (the Supabase string), `GEMINI_API_KEY`, and `ALLOW_DEMO_RESET=false`. Anyone who has the link can open a deployed site, and "Reset sample data" needs no sign-in, so without this setting one tap by a visitor deletes a lesson made during a demo.
 4. Deploy. On the first request the app creates the tables and inserts the sample class if the database is empty, so the reset is not needed to get the sample data. `db/schema.sql` has the same statements if you prefer to run them in the Supabase SQL editor.
 
 Things to know before trying it:
@@ -148,7 +145,7 @@ Sample output says what it is. The header shows "Sample mode · no AI key". Labe
 
 ## Known limitations
 
-- **Only Gemini has been run live.** One full loop (activity draft, grading, tutor, parent summary) was run with a Gemini key and the default model `gemini-3.5-flash-lite` on 2026-10-02, and all four tasks worked. OpenAI has not been called: its requests are tested against mocked responses only, and its default model id is unconfirmed. Run `npm run check:ai` after adding a key.
+- **One live trial only.** One full loop (activity draft, grading, tutor, parent summary) was run with a Gemini key and the default model `gemini-3.5-flash-lite` on 2026-10-02, and all four tasks worked. That is a single trial, not a measure of quality across lessons. Run `npm run check:ai` after adding a key.
 - **The hosted database path has not been run.** Only the embedded database has been used.
 - **Sign-in is a prototype.** Anyone who opens the site can choose any sample account, including the teacher. There are no passwords, and the cookie holds a plain user id. Do not put real student data in it.
 - **One class.** The sample data has one class with a join code, but there is no screen to create a class, add users or join with the code.

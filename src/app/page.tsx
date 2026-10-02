@@ -77,7 +77,7 @@ export default async function RolePickerPage() {
             // is already chosen.
             <div
               role="status"
-              className="flex w-full animate-pop flex-wrap items-center gap-3 rounded-3xl border-2 border-line bg-white p-3 text-ink shadow-edge-brand sm:w-64"
+              className="flex w-full animate-pop flex-wrap items-center gap-3 rounded-3xl border-2 border-line bg-white p-3 text-ink sm:w-64"
             >
               <Avatar name={currentUser.name} tone="brand" />
               <p className="min-w-0 flex-1 break-words text-sm font-bold leading-snug">

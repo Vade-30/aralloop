@@ -102,7 +102,7 @@ export function ResultItem({
 
   return (
     <li
-      className="animate-rise rounded-3xl border-2 border-line bg-white p-4 shadow-edge sm:p-5"
+      className="animate-rise rounded-3xl border-2 border-line bg-white p-4 sm:p-5"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start gap-3 sm:gap-4">

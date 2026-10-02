@@ -59,19 +59,20 @@ const STEPS: Step[] = [
   },
 ];
 
-// `tile` is the step's icon tile on its raised edge. `lit` is the ring it gets
+// `tile` is the step's icon tile: a round, flat badge, because a step is not
+// something to press. `lit` is the ring it gets
 // while the pointer or the keyboard focus is in that role's column of accounts.
 const ROLE_LOOKS: Record<Role, { tile: string; lit: string }> = {
   teacher: {
-    tile: "bg-brand-600 text-white shadow-[0_4px_0_#162a94]",
+    tile: "bg-brand-600 text-white",
     lit: "group-has-[[data-lane=teacher]:is(:hover,:focus-within)]/loop:ring-4 group-has-[[data-lane=teacher]:is(:hover,:focus-within)]/loop:ring-brand-300",
   },
   student: {
-    tile: "bg-accent-400 text-ink shadow-[0_4px_0_#c99a12]",
+    tile: "bg-accent-400 text-ink",
     lit: "group-has-[[data-lane=student]:is(:hover,:focus-within)]/loop:ring-4 group-has-[[data-lane=student]:is(:hover,:focus-within)]/loop:ring-accent-600",
   },
   parent: {
-    tile: "bg-brand-900 text-accent-400 shadow-[0_4px_0_#0f1a52]",
+    tile: "bg-brand-900 text-accent-400",
     lit: "group-has-[[data-lane=parent]:is(:hover,:focus-within)]/loop:ring-4 group-has-[[data-lane=parent]:is(:hover,:focus-within)]/loop:ring-brand-300",
   },
 };
@@ -127,7 +128,7 @@ export function LoopStrip({ className }: { className?: string }) {
                 >
                   <span
                     className={cn(
-                      "relative flex h-11 w-11 flex-none items-center justify-center rounded-2xl transition-shadow duration-150 sm:h-14 sm:w-14",
+                      "relative flex h-11 w-11 flex-none items-center justify-center rounded-full transition-shadow duration-150 sm:h-14 sm:w-14",
                       look.tile,
                       look.lit,
                     )}

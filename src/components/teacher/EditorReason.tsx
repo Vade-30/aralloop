@@ -60,7 +60,7 @@ export function EditorReason({
     <section
       aria-labelledby="why-this-format"
       className={cn(
-        "relative overflow-hidden rounded-3xl border-2 border-brand-200 bg-white p-4 shadow-[0_5px_0_#bfd3fe] sm:p-5",
+        "relative overflow-hidden rounded-3xl border-2 border-brand-200 bg-white p-4 sm:p-5",
         className,
       )}
     >
@@ -71,7 +71,7 @@ export function EditorReason({
       />
       <div className="relative flex gap-3 sm:gap-4">
         {/* The sparkles mean AI. A sample-mode draft was built by plain code, so it gets a neutral icon. */}
-        <IconTile tone="accent" className="shadow-[0_4px_0_#c99a12]">
+        <IconTile tone="accent">
           {provider === "mock" ? <Lightbulb /> : <Sparkles />}
         </IconTile>
         <div className="min-w-0 flex-1">

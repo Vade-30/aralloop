@@ -50,7 +50,7 @@ export function ClassSidePanel({
   return (
     <aside aria-label="About this class" className="space-y-6 lg:sticky lg:top-6">
       <div
-        className="animate-rise overflow-hidden rounded-3xl border-2 border-line bg-white shadow-edge"
+        className="animate-rise overflow-hidden rounded-3xl border-2 border-line bg-white"
         style={{ animationDelay: "160ms" }}
       >
         <div className="relative isolate overflow-hidden bg-brand-600 px-5 pb-5 pt-4 text-white">
@@ -63,18 +63,9 @@ export function ClassSidePanel({
             className="absolute -bottom-5 -right-3 -z-10 h-12 w-12 rounded-full bg-accent-400"
           />
           <p className="text-xs font-black uppercase tracking-widest text-brand-100">Join code</p>
-          {/* Read out as one word; the tiles below are only its looks. */}
-          <p className="sr-only">{schoolClass.joinCode}</p>
-          <p aria-hidden="true" className="mt-2 flex flex-wrap gap-1.5">
-            {Array.from(schoolClass.joinCode).map((character, index) => (
-              <span
-                key={index}
-                className="flex h-12 w-9 animate-pop items-center justify-center rounded-xl bg-white font-display text-2xl font-extrabold text-brand-900 shadow-[0_4px_0_#162a94]"
-                style={{ animationDelay: `${260 + index * 60}ms` }}
-              >
-                {character}
-              </span>
-            ))}
+          {/* Plain large letters: raised tiles here looked like keys to press. */}
+          <p className="mt-1 break-all font-display text-4xl font-extrabold leading-none tracking-[0.18em] text-white">
+            {schoolClass.joinCode}
           </p>
         </div>
         <div className="px-5 py-4">

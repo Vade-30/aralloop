@@ -3,8 +3,8 @@
 // components alike.
 //
 // The look is "bold and playful": a deep blue header band, yellow main
-// buttons, and chunky white cards with a raised edge (the shadow-edge tokens
-// in globals.css).
+// buttons, and chunky white cards. The raised edge (the shadow-edge tokens in
+// globals.css) is kept for things that can be pressed; panels are flat.
 
 import { ArrowLeft, Check, Eye, Hourglass, Sparkles, X } from "lucide-react";
 import Link from "next/link";
@@ -18,12 +18,13 @@ export function cn(...parts: (string | false | null | undefined)[]): string {
 }
 
 /**
- * Hover for a card that is a link or holds one stretched over it: the card
- * lifts a little and its border turns blue. Tailwind 4 moves an element with
+ * For a card that is a link or holds one stretched over it: it sits on the
+ * raised edge, which only things you can press have, and on hover it lifts a
+ * little and its border turns blue. Tailwind 4 moves an element with
  * the "translate" property, so that is what the transition names.
  */
 export const CARD_LIFT =
-  "transition-[translate,border-color,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-brand-300";
+  "shadow-edge transition-[translate,border-color,box-shadow] duration-150 hover:-translate-y-0.5 hover:border-brand-300";
 
 // --- Button ------------------------------------------------------------------
 
@@ -246,10 +247,14 @@ export function Skeleton({ className }: { className?: string }) {
   );
 }
 
+/**
+ * A flat panel that holds content. It has no raised edge, so it is not
+ * mistaken for a button; a card that can be pressed adds CARD_LIFT.
+ */
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("rounded-3xl border-2 border-line bg-white p-4 shadow-edge sm:p-5", className)}
+      className={cn("rounded-3xl border-2 border-line bg-white p-4 sm:p-5", className)}
       {...props}
     />
   );
@@ -341,7 +346,7 @@ export function StatTile({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-3.5 rounded-3xl border-2 border-line bg-white px-3 py-4 text-center shadow-edge",
+        "flex items-center justify-center gap-3.5 rounded-3xl border-2 border-line bg-white px-3 py-4 text-center",
         icon !== undefined && "lg:justify-start lg:px-4 lg:text-left",
       )}
     >

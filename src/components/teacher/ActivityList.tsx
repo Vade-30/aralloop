@@ -63,7 +63,7 @@ export function ActivityList({
             <Link
               href={activityHref(activity)}
               className={cn(
-                "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-3xl border-2 border-line bg-white p-4 shadow-edge active:translate-y-[3px] active:shadow-none sm:gap-x-4 sm:gap-y-2 sm:p-5",
+                "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-3xl border-2 border-line bg-white p-4 active:translate-y-[3px] active:shadow-none sm:gap-x-4 sm:gap-y-2 sm:p-5",
                 CARD_LIFT,
               )}
             >

@@ -2,12 +2,12 @@
 
 This document describes how the AralLoop prototype is built. Everything here is taken from the source code in `src/`.
 
-A slide-ready version of the first diagram is in [architecture.svg](./architecture.svg).
+A slide-ready overview in four parts (browser, server, AI service, database) is in [architecture.svg](./architecture.svg). The first diagram below shows the modules inside the server.
 
 ## What has and has not been verified
 
 - Verified: typecheck, lint, the unit tests and the production build pass. The whole loop has been clicked through in a browser in sample mode, on the embedded database.
-- Verified on Gemini only: one full loop was run with a live Gemini key and all four AI tasks answered. Not yet verified: a live call to OpenAI, whose request code is tested with `fetch` replaced by a mock. `npm run check:ai` makes one small real call per configured key.
+- Verified with live AI: one full loop was run with a live Google Gemini key and all four AI tasks answered. `npm run check:ai` makes one small real call with the configured key.
 - Not yet verified: the hosted PostgreSQL path. The `pg` driver code is written, but only PGlite has run.
 - Sample mode is not AI. With no API key the app runs plain code that builds stand-in results and labels them "Sample mode · not real AI" on screen.
 
@@ -28,7 +28,7 @@ flowchart TB
     grading["Grading module: src/lib/grading.ts<br/>objective items checked by code"]
     subgraph ai["AI layer: src/lib/ai"]
       tasks["Four tasks<br/>generate activity, grade free text,<br/>parent summary, tutor"]
-      provider["Provider selection: provider.ts<br/>zod validation, one retry, fallback"]
+      provider["Provider call: provider.ts<br/>zod validation, one retry"]
       mock["Sample mode: mock.ts<br/>plain code, no model, labelled on screen"]
     end
     repo["Repository: repo.ts holds all SQL<br/>client.ts: one query interface, two drivers"]
@@ -36,8 +36,7 @@ flowchart TB
 
   pglite[("PGlite<br/>embedded PostgreSQL, local runs")]
   hosted[("Hosted PostgreSQL<br/>deployment, for example Supabase")]
-  openai["OpenAI API<br/>first choice"]
-  gemini["Gemini API<br/>fallback"]
+  gemini["Google Gemini API"]
 
   browser -->|"page requests"| pages
   browser -->|"JSON API calls"| api
@@ -49,8 +48,7 @@ flowchart TB
   grading -->|"free-text answers, one batch"| tasks
   tasks -->|"an API key is set"| provider
   tasks -->|"no API key"| mock
-  provider -->|"first choice"| openai
-  provider -.->|"fallback"| gemini
+  provider -->|"structured JSON request"| gemini
   repo -->|"DATABASE_URL unset"| pglite
   repo -->|"DATABASE_URL set"| hosted
 
@@ -59,7 +57,7 @@ flowchart TB
   classDef ext fill:#ffffff,stroke:#2549e6,color:#1e3084,stroke-dasharray: 5 4
   class teacher,student,parent,pages,api,extract,grading,repo app
   class tasks,provider,mock aibox
-  class openai,gemini,pglite,hosted ext
+  class gemini,pglite,hosted ext
   style ai fill:#fffbea,stroke:#f0b429,color:#1e3084
   style browser fill:#ffffff,stroke:#93b4fd,color:#1e3084
   style server fill:#ffffff,stroke:#93b4fd,color:#1e3084
@@ -70,10 +68,10 @@ How to read it:
 - **Browser.** Three sets of screens, one per role. Pages are rendered on the server. The browser only calls the API to change something or to ask for AI output.
 - **Pages.** Server components in `src/app/teacher`, `src/app/student` and `src/app/parent` read data through the repository and decide what each role may see.
 - **API routes.** 11 route files export 13 handlers. Each handler uses the helpers in `src/lib/http.ts`: `requireUser` checks the session cookie and the role, `parseBody` validates the body with a zod schema from `src/lib/contracts.ts`, and `route()` turns any thrown error into a JSON error with a message that is safe to show. An AI failure becomes a 503 with a plain explanation. Choosing a sample account and resetting the sample data need no account.
-- **File extraction.** `src/lib/extract.ts` turns a `.txt`, `.md`, `.pdf` or `.docx` upload into plain text. It runs on the server only. A scanned PDF has no text, so the teacher is told to paste the lesson instead.
+- **File extraction.** `src/lib/extract.ts` turns a `.txt`, `.md`, `.pdf` or `.docx` upload into plain text. It runs on the server only. A photo of a lesson page (`.jpg`, `.png`, `.webp`, `.heic`) is made smaller in the browser and read by the AI (`src/lib/ai/read-lesson-image.ts`), which only copies the words; the teacher checks the text before saving. A scanned PDF has no text, so the teacher is told to upload a photo or paste the lesson instead.
 - **Grading module.** `src/lib/grading.ts` checks objective items with plain code and sends only the undecided free-text answers to the AI layer, in one batch.
 - **AI layer.** `src/lib/ai` has four task files. Each one checks `getAiStatus()` first. With a key it calls `generateJson()` in `provider.ts`. With no key it calls `mock.ts`.
-- **Provider selection.** `OPENAI_API_KEY` set: OpenAI is tried first, and Gemini is the fallback if `GEMINI_API_KEY` is also set. Only a Gemini key: Gemini is used with no fallback. No key: sample mode. `AI_PROVIDER` can force one provider.
+- **Provider selection.** `GEMINI_API_KEY` set: Google Gemini is used. No key: sample mode. `AI_PROVIDER=mock` forces sample mode. The provider layer is written so that a second provider can be added as a fallback; the prototype is set up and verified with Gemini only.
 - **Repository.** `src/lib/db/repo.ts` holds all SQL. `src/lib/db/client.ts` picks the driver.
 - **Session.** Prototype sign-in only. Choosing a sample account stores its user id in an `httpOnly` cookie. There are no passwords and only sample data.
 
@@ -170,7 +168,7 @@ sequenceDiagram
   S-->>St: Reply. The chat is not stored.
   Note over P,S: The parent can ask through the same route.
 
-  Note over AI: With a key the AI layer calls OpenAI first, then Gemini as fallback.<br/>With no key it runs sample mode. That is plain code, not AI,<br/>and the screen says so.
+  Note over AI: With a key the AI layer calls Google Gemini.<br/>With no key it runs sample mode. That is plain code, not AI,<br/>and the screen says so.
 ```
 
 ### Where AI is called
@@ -241,7 +239,7 @@ erDiagram
     text type "one item type or mixed"
     text ai_reason "why this format was chosen"
     text status "draft or published"
-    text ai_provider "openai, gemini or mock"
+    text ai_provider "gemini or mock"
     text ai_model
     timestamptz created_at
     timestamptz published_at "nullable"
@@ -269,8 +267,8 @@ erDiagram
     float8 max_score
     boolean needs_review
     jsonb summary "English and Filipino, nullable"
-    text summary_provider "openai, gemini or mock, nullable"
-    text grading_provider "openai, gemini or mock, nullable"
+    text summary_provider "gemini or mock, nullable"
+    text grading_provider "gemini or mock, nullable"
     timestamptz submitted_at
   }
 
@@ -308,7 +306,7 @@ Status: only the PGlite path has run so far.
 
 ### Structured output, validated with zod and repaired in code
 
-Each AI task defines a zod schema. `provider.ts` converts it to JSON Schema and each adapter (`openai.ts`, `gemini.ts`) reduces it to what that API accepts, then asks for structured JSON with plain `fetch`. The reply is parsed and validated with the same zod schema. An invalid reply is retried once. A reply that says the service is busy or failed (HTTP 429 rate limit, 408 or 5xx) is retried once after 1.5 seconds. Then the fallback provider is tried. Each try has 45 seconds and all tries share 55 seconds, so a route always answers before its 60-second limit.
+Each AI task defines a zod schema. `provider.ts` converts it to JSON Schema and the adapter (`gemini.ts`) reduces it to what the API accepts, then asks for structured JSON with plain `fetch`. The reply is parsed and validated with the same zod schema. An invalid reply is retried once. A reply that says the service is busy or failed (HTTP 429 rate limit, 408 or 5xx) is retried once after 1.5 seconds. If it still fails, the route returns a clear error. Each try has 45 seconds and all tries share 55 seconds, so a route always answers before its 60-second limit.
 
 After validation, each task repairs what it can:
 

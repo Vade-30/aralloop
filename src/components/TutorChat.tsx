@@ -43,7 +43,7 @@ function HelperAvatar({ isSample }: { isSample: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="mb-[3px] flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-accent-400 text-ink shadow-[0_3px_0_#c99a12]"
+      className="mb-[3px] flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-accent-400 text-ink"
     >
       <HelperIcon isSample={isSample} className="h-4 w-4" />
     </span>
@@ -76,8 +76,8 @@ function Bubble({
           // It grows from the corner where its tail is.
           animate && "animate-pop",
           isUser
-            ? "origin-bottom-right rounded-br-md bg-brand-600 text-white shadow-[0_3px_0_#162a94]"
-            : "origin-bottom-left rounded-bl-md border-2 border-line bg-white text-ink shadow-edge-sm",
+            ? "origin-bottom-right rounded-br-md bg-brand-600 text-white"
+            : "origin-bottom-left rounded-bl-md border-2 border-line bg-white text-ink",
           failed && "opacity-60",
         )}
       >
@@ -168,7 +168,7 @@ export function TutorChat({
     // header bar, a message area and an input bar that each reach the edges.
     // It is a size container, so the @lg: classes inside follow the width of
     // the chat itself: it is a narrow side column on some screens.
-    <div className="@container overflow-hidden rounded-3xl border-2 border-line bg-white shadow-edge">
+    <div className="@container overflow-hidden rounded-3xl border-2 border-line bg-white">
       <div className="relative isolate flex items-center gap-3 overflow-hidden bg-brand-900 px-4 py-3.5 @lg:px-5">
         <span
           aria-hidden="true"
@@ -180,7 +180,7 @@ export function TutorChat({
         />
         <span
           aria-hidden="true"
-          className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-accent-400 text-ink shadow-[0_4px_0_#c99a12]"
+          className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-accent-400 text-ink"
         >
           <HelperIcon isSample={isSample} className="h-6 w-6" />
         </span>
@@ -237,7 +237,7 @@ export function TutorChat({
             {sending && (
               <li className="flex items-end gap-2">
                 <HelperAvatar isSample={isSample} />
-                <div className="flex origin-bottom-left animate-pop items-center gap-2.5 rounded-[1.25rem] rounded-bl-md border-2 border-line bg-white px-3.5 py-2.5 text-sm font-bold text-muted shadow-edge-sm">
+                <div className="flex origin-bottom-left animate-pop items-center gap-2.5 rounded-[1.25rem] rounded-bl-md border-2 border-line bg-white px-3.5 py-2.5 text-sm font-bold text-muted">
                   <span aria-hidden="true" className="flex items-center gap-1">
                     {DOT_DELAYS.map((delay) => (
                       <span

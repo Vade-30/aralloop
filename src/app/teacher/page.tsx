@@ -165,7 +165,7 @@ export default async function TeacherDashboardPage() {
           {waiting.length > 0 && (
             <section
               aria-labelledby="waiting-title"
-              className="mb-8 animate-pop rounded-3xl border-2 border-accent-200 bg-accent-50 p-4 shadow-[0_5px_0_#fce588] sm:p-5"
+              className="mb-8 animate-pop rounded-3xl border-2 border-accent-200 bg-accent-50 p-4 sm:p-5"
             >
               <div className="flex items-center gap-3">
                 <span

@@ -17,7 +17,7 @@ export function LessonGenerating({ message, className }: { message: string; clas
       <div role="status" className="flex items-start gap-3 px-4 py-4">
         <span
           aria-hidden="true"
-          className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-brand-600 text-white shadow-edge-brand"
+          className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-brand-600 text-white"
         >
           <Spinner className="h-5 w-5" />
         </span>

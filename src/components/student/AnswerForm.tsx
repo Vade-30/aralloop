@@ -275,7 +275,7 @@ export function AnswerForm({
       <div
         className={cn(
           ANSWER_MAIN_SLOT,
-          "animate-pop rounded-3xl border-2 border-line bg-white p-6 text-center shadow-edge sm:p-8",
+          "animate-pop rounded-3xl border-2 border-line bg-white p-6 text-center sm:p-8",
         )}
       >
         <span
@@ -316,7 +316,7 @@ export function AnswerForm({
         ref={cardRef}
         className={cn(
           ANSWER_MAIN_SLOT,
-          "scroll-mt-4 overflow-hidden rounded-3xl border-2 border-line bg-white shadow-edge",
+          "scroll-mt-4 overflow-hidden rounded-3xl border-2 border-line bg-white",
         )}
       >
         <div className="bg-brand-900 px-4 py-4 text-white sm:px-6">
@@ -544,7 +544,7 @@ export function AnswerForm({
         aria-label="All questions"
         className={cn(
           ANSWER_SIDE_SLOT,
-          "rounded-3xl border-2 border-line bg-white p-4 shadow-edge sm:p-5 lg:sticky lg:top-6",
+          "rounded-3xl border-2 border-line bg-white p-4 sm:p-5 lg:sticky lg:top-6",
         )}
       >
         <div className="flex items-baseline justify-between gap-3">

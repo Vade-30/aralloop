@@ -1,133 +1,115 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="svg-title svg-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
   <title id="svg-title">AralLoop system architecture</title>
-  <desc id="svg-desc">The browser shows teacher, student and parent screens. It sends page requests and JSON API calls to the Next.js server. On the server, pages and API routes use a repository, a file extraction module, a grading module and an AI layer. The repository talks to PostgreSQL: PGlite locally and a hosted PostgreSQL in deployment. The AI layer calls the OpenAI API first and the Gemini API as fallback, and runs a labelled sample mode when no key is set.</desc>
+  <desc id="svg-desc">Four parts. The browser, built with React and Tailwind CSS, shows the teacher, student and parent screens. It talks to a Next.js server written in TypeScript, which serves the pages and API routes, reads lesson files, grades objective items in code and validates every AI reply. The server calls an AI service, Google Gemini, and stores data in PostgreSQL.</desc>
+  <defs>
+    <linearGradient id="gemini" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4285f4"/>
+      <stop offset="0.5" stop-color="#9b72cb"/>
+      <stop offset="1" stop-color="#d96570"/>
+    </linearGradient>
+  </defs>
 
-  <!-- Background -->
+  <!-- Background and title -->
   <rect x="0" y="0" width="1280" height="720" fill="#ffffff"/>
+  <text x="40" y="64" font-size="30" font-weight="700" fill="#1e3084">AralLoop system architecture</text>
+  <rect x="40" y="82" width="96" height="6" rx="3" fill="#f7c948"/>
 
-  <!-- Title and legend -->
-  <text x="40" y="40" font-size="26" font-weight="700" fill="#1e3084">AralLoop system architecture</text>
+  <!-- Arrows -->
+  <line x1="360" y1="350" x2="470" y2="350" stroke="#2549e6" stroke-width="3"/>
+  <polygon points="360,343 360,357 346,350" fill="#2549e6"/>
+  <polygon points="470,343 470,357 484,350" fill="#2549e6"/>
+  <text x="415" y="312" font-size="16" fill="#1e32a8" text-anchor="middle">pages and</text>
+  <text x="415" y="334" font-size="16" fill="#1e32a8" text-anchor="middle">API calls</text>
 
-  <rect x="700" y="24" width="18" height="18" rx="4" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="726" y="39" font-size="16" fill="#1e3084">App code</text>
-  <rect x="830" y="24" width="18" height="18" rx="4" fill="#fff3c4" stroke="#f0b429" stroke-width="2"/>
-  <text x="856" y="39" font-size="16" fill="#1e3084">AI layer</text>
-  <rect x="960" y="24" width="18" height="18" rx="4" fill="#ffffff" stroke="#2549e6" stroke-width="2" stroke-dasharray="4 3"/>
-  <text x="986" y="39" font-size="16" fill="#1e3084">External AI service</text>
+  <line x1="810" y1="240" x2="920" y2="240" stroke="#2549e6" stroke-width="3"/>
+  <polygon points="810,233 810,247 796,240" fill="#2549e6"/>
+  <polygon points="920,233 920,247 934,240" fill="#2549e6"/>
+  <text x="865" y="224" font-size="16" fill="#1e32a8" text-anchor="middle">prompts</text>
+  <text x="865" y="268" font-size="16" fill="#1e32a8" text-anchor="middle">JSON replies</text>
 
-  <!-- Containers -->
-  <rect x="40" y="56" width="1200" height="96" rx="14" fill="#ffffff" stroke="#93b4fd" stroke-width="2"/>
-  <text x="56" y="76" font-size="16" font-weight="700" fill="#1e3084">Browser</text>
+  <line x1="810" y1="460" x2="920" y2="460" stroke="#2549e6" stroke-width="3"/>
+  <polygon points="810,453 810,467 796,460" fill="#2549e6"/>
+  <polygon points="920,453 920,467 934,460" fill="#2549e6"/>
+  <text x="865" y="444" font-size="16" fill="#1e32a8" text-anchor="middle">SQL</text>
 
-  <rect x="40" y="200" width="1200" height="316" rx="14" fill="#ffffff" stroke="#93b4fd" stroke-width="2"/>
-  <text x="1224" y="222" font-size="16" font-weight="700" fill="#1e3084" text-anchor="end">Next.js server</text>
+  <!-- 1. Browser -->
+  <rect x="40" y="140" width="300" height="420" rx="18" fill="#ffffff" stroke="#2549e6" stroke-width="2"/>
+  <rect x="118" y="160" width="64" height="64" rx="14" fill="#f7f9ff" stroke="#d5ddf0"/>
+  <g transform="translate(130 172) scale(1.6667)" fill="none" stroke="#087ea4" stroke-width="1">
+    <title>React</title>
+    <ellipse cx="12" cy="12" rx="11" ry="4.2"/>
+    <ellipse cx="12" cy="12" rx="11" ry="4.2" transform="rotate(60 12 12)"/>
+    <ellipse cx="12" cy="12" rx="11" ry="4.2" transform="rotate(120 12 12)"/>
+    <circle cx="12" cy="12" r="2.05" fill="#087ea4" stroke="none"/>
+  </g>
+  <rect x="198" y="160" width="64" height="64" rx="14" fill="#f7f9ff" stroke="#d5ddf0"/>
+  <g transform="translate(210 172) scale(1.6667)" fill="#06b6d4">
+    <title>Tailwind CSS</title>
+    <path d="M12.001 4.8c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624C13.666 10.618 15.027 12 18.001 12c3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C16.337 6.182 14.976 4.8 12.001 4.8zm-6 7.2c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624 1.177 1.194 2.538 2.576 5.512 2.576 3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C10.337 13.382 8.976 12 6.001 12z"/>
+  </g>
+  <text x="190" y="262" font-size="24" font-weight="700" fill="#1e3084" text-anchor="middle">Browser</text>
+  <text x="190" y="288" font-size="16" fill="#44506e" text-anchor="middle">React · Tailwind CSS</text>
 
-  <!-- Arrows: browser to server -->
-  <line x1="151" y1="152" x2="151" y2="226" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="145,224 157,224 151,236" fill="#2549e6"/>
-  <text x="161" y="182" font-size="16" fill="#1e32a8">page requests</text>
+  <rect x="64" y="316" width="252" height="60" rx="12" fill="#eef4ff"/>
+  <text x="190" y="341" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Teacher</text>
+  <text x="190" y="363" font-size="16" fill="#44506e" text-anchor="middle">lessons, activities, results</text>
+  <rect x="64" y="388" width="252" height="60" rx="12" fill="#eef4ff"/>
+  <text x="190" y="413" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Student</text>
+  <text x="190" y="435" font-size="16" fill="#44506e" text-anchor="middle">answers, feedback, tutor</text>
+  <rect x="64" y="460" width="252" height="60" rx="12" fill="#eef4ff"/>
+  <text x="190" y="485" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Parent</text>
+  <text x="190" y="507" font-size="16" fill="#44506e" text-anchor="middle">summary in English, Filipino</text>
 
-  <line x1="747" y1="152" x2="747" y2="226" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="741,224 753,224 747,236" fill="#2549e6"/>
-  <text x="757" y="182" font-size="16" fill="#1e32a8">JSON API calls</text>
+  <!-- 2. Next.js server -->
+  <rect x="490" y="140" width="300" height="420" rx="18" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
+  <rect x="568" y="160" width="64" height="64" rx="14" fill="#ffffff" stroke="#d5ddf0"/>
+  <g transform="translate(580 172) scale(1.6667)" fill="#000000">
+    <title>Next.js</title>
+    <path d="M18.665 21.978C16.758 23.255 14.465 24 12 24 5.377 24 0 18.623 0 12S5.377 0 12 0s12 5.377 12 12c0 3.583-1.574 6.801-4.067 9.001L9.219 7.2H7.2v9.596h1.615V9.251l9.85 12.727Zm-3.332-8.533 1.6 2.061V7.2h-1.6v6.245Z"/>
+  </g>
+  <rect x="648" y="160" width="64" height="64" rx="14" fill="#ffffff" stroke="#d5ddf0"/>
+  <g transform="translate(660 172) scale(1.6667)">
+    <title>TypeScript</title>
+    <rect x="0" y="0" width="24" height="24" rx="2.6" fill="#3178c6"/>
+    <text x="21.6" y="20.6" font-size="13" font-weight="700" fill="#ffffff" text-anchor="end" font-family="'Segoe UI', system-ui, Arial, sans-serif">TS</text>
+  </g>
+  <text x="640" y="262" font-size="24" font-weight="700" fill="#1e3084" text-anchor="middle">Next.js server</text>
+  <text x="640" y="288" font-size="16" fill="#44506e" text-anchor="middle">TypeScript</text>
 
-  <!-- Arrows: pages and API routes to the modules -->
-  <line x1="151" y1="300" x2="151" y2="354" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="145,352 157,352 151,364" fill="#2549e6"/>
-  <text x="161" y="337" font-size="16" fill="#1e32a8">reads</text>
+  <rect x="514" y="316" width="252" height="44" rx="12" fill="#ffffff"/>
+  <text x="640" y="344" font-size="16" fill="#1e3084" text-anchor="middle">Pages and API routes</text>
+  <rect x="514" y="370" width="252" height="44" rx="12" fill="#ffffff"/>
+  <text x="640" y="398" font-size="16" fill="#1e3084" text-anchor="middle">Reads PDF, Word, text files</text>
+  <rect x="514" y="424" width="252" height="44" rx="12" fill="#ffffff"/>
+  <text x="640" y="452" font-size="16" fill="#1e3084" text-anchor="middle">Objective grading in code</text>
+  <rect x="514" y="478" width="252" height="44" rx="12" fill="#ffffff"/>
+  <text x="640" y="506" font-size="16" fill="#1e3084" text-anchor="middle">Validates every AI reply</text>
 
-  <line x1="298" y1="300" x2="298" y2="354" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="292,352 304,352 298,364" fill="#2549e6"/>
-  <text x="308" y="337" font-size="16" fill="#1e32a8">reads, writes</text>
+  <!-- 3. AI service -->
+  <rect x="940" y="140" width="300" height="200" rx="18" fill="#fff3c4" stroke="#f0b429" stroke-width="3"/>
+  <rect x="1058" y="156" width="64" height="64" rx="14" fill="#ffffff" stroke="#f0d98a"/>
+  <g transform="translate(1070 168) scale(1.6667)" fill="url(#gemini)">
+    <title>Google Gemini</title>
+    <path d="M12 24A14.304 14.304 0 0 0 0 12 14.304 14.304 0 0 0 12 0a14.305 14.305 0 0 0 12 12 14.305 14.305 0 0 0-12 12"/>
+  </g>
+  <text x="1090" y="254" font-size="22" font-weight="700" fill="#1e3084" text-anchor="middle">AI service</text>
+  <text x="1090" y="280" font-size="16" fill="#44506e" text-anchor="middle">Google Gemini API</text>
+  <text x="1090" y="310" font-size="16" fill="#1e3084" text-anchor="middle">Drafts, grades, summarises, tutors</text>
 
-  <line x1="440" y1="300" x2="440" y2="354" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="434,352 446,352 440,364" fill="#2549e6"/>
-  <text x="450" y="337" font-size="16" fill="#1e32a8">uploaded file</text>
+  <!-- 4. Database -->
+  <rect x="940" y="360" width="300" height="200" rx="18" fill="#dbe7fe" stroke="#2549e6" stroke-width="2"/>
+  <rect x="1058" y="376" width="64" height="64" rx="14" fill="#ffffff" stroke="#b9cdf7"/>
+  <g transform="translate(1070 388) scale(1.6667)">
+    <title>PostgreSQL</title>
+    <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5z" fill="#336791"/>
+    <ellipse cx="12" cy="5" rx="8" ry="3" fill="#6f9bc4"/>
+    <path d="M4 9.7c0 1.66 3.58 3 8 3s8-1.34 8-3M4 14.4c0 1.66 3.58 3 8 3s8-1.34 8-3" fill="none" stroke="#ffffff" stroke-width="1"/>
+  </g>
+  <text x="1090" y="474" font-size="22" font-weight="700" fill="#1e3084" text-anchor="middle">PostgreSQL</text>
+  <text x="1090" y="500" font-size="16" fill="#44506e" text-anchor="middle">Lessons, activities, answers, scores</text>
+  <text x="1090" y="530" font-size="16" fill="#1e3084" text-anchor="middle">Embedded locally or hosted</text>
 
-  <line x1="644" y1="300" x2="644" y2="354" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="638,352 650,352 644,364" fill="#2549e6"/>
-  <text x="654" y="337" font-size="16" fill="#1e32a8">answers</text>
-
-  <line x1="1024" y1="300" x2="1024" y2="354" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="1018,352 1030,352 1024,364" fill="#2549e6"/>
-  <text x="1014" y="337" font-size="16" fill="#1e32a8" text-anchor="end">generate, summarise, tutor</text>
-
-  <!-- Arrow: grading module to AI layer -->
-  <line x1="734" y1="432" x2="814" y2="432" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="812,426 812,438 824,432" fill="#2549e6"/>
-  <text x="779" y="419" font-size="16" fill="#1e32a8" text-anchor="middle">free-text</text>
-  <text x="779" y="456" font-size="16" fill="#1e32a8" text-anchor="middle">answers</text>
-
-  <!-- Arrows: repository to PostgreSQL, AI layer to the AI services -->
-  <line x1="191" y1="500" x2="191" y2="590" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="185,588 197,588 191,600" fill="#2549e6"/>
-  <text x="201" y="564" font-size="16" fill="#1e32a8">one SQL codebase, two drivers</text>
-
-  <line x1="918" y1="500" x2="918" y2="590" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="912,588 924,588 918,600" fill="#2549e6"/>
-  <line x1="1130" y1="500" x2="1130" y2="590" stroke="#2549e6" stroke-width="2"/>
-  <polygon points="1124,588 1136,588 1130,600" fill="#2549e6"/>
-  <text x="1024" y="552" font-size="16" fill="#1e32a8" text-anchor="middle">plain fetch,</text>
-  <text x="1024" y="574" font-size="16" fill="#1e32a8" text-anchor="middle">structured output</text>
-
-  <!-- Browser: three sets of screens -->
-  <rect x="56" y="86" width="372" height="56" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="242" y="109" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Teacher screens</text>
-  <text x="242" y="131" font-size="16" fill="#1e3084" text-anchor="middle">Lessons, activity editor, results</text>
-
-  <rect x="454" y="86" width="372" height="56" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="640" y="109" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Student screens</text>
-  <text x="640" y="131" font-size="16" fill="#1e3084" text-anchor="middle">Answer form, feedback, tutor</text>
-
-  <rect x="852" y="86" width="372" height="56" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="1038" y="109" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Parent screens</text>
-  <text x="1038" y="131" font-size="16" fill="#1e3084" text-anchor="middle">Summary in English and Filipino, tutor</text>
-
-  <!-- Server row 1: pages and API routes -->
-  <rect x="56" y="236" width="190" height="64" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="151" y="262" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Pages</text>
-  <text x="151" y="285" font-size="16" fill="#1e3084" text-anchor="middle">server components</text>
-
-  <rect x="270" y="236" width="954" height="64" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="747" y="262" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">API routes</text>
-  <text x="747" y="285" font-size="16" fill="#1e3084" text-anchor="middle">13 handlers: session check, zod validation, error mapping</text>
-
-  <!-- Server row 2: repository, file extraction, grading, AI layer -->
-  <rect x="56" y="364" width="270" height="136" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="191" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Repository</text>
-  <text x="191" y="418" font-size="16" fill="#1e3084" text-anchor="middle">repo.ts: all the SQL</text>
-  <text x="191" y="441" font-size="16" fill="#1e3084" text-anchor="middle">client.ts: one query</text>
-  <text x="191" y="464" font-size="16" fill="#1e3084" text-anchor="middle">interface, two drivers</text>
-
-  <rect x="350" y="364" width="180" height="136" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="440" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">File extraction</text>
-  <text x="440" y="418" font-size="16" fill="#1e3084" text-anchor="middle">txt, md, pdf, docx</text>
-  <text x="440" y="441" font-size="16" fill="#1e3084" text-anchor="middle">to plain text</text>
-
-  <rect x="554" y="364" width="180" height="136" rx="10" fill="#eef4ff" stroke="#2549e6" stroke-width="2"/>
-  <text x="644" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Grading module</text>
-  <text x="644" y="418" font-size="16" fill="#1e3084" text-anchor="middle">objective items</text>
-  <text x="644" y="441" font-size="16" fill="#1e3084" text-anchor="middle">checked by code,</text>
-  <text x="644" y="464" font-size="16" fill="#1e3084" text-anchor="middle">no AI needed</text>
-
-  <rect x="824" y="364" width="400" height="136" rx="10" fill="#fff3c4" stroke="#f0b429" stroke-width="3"/>
-  <text x="1024" y="392" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">AI layer</text>
-  <text x="1024" y="418" font-size="16" fill="#1e3084" text-anchor="middle">4 tasks: generate, grade, summarise, tutor</text>
-  <text x="1024" y="441" font-size="16" fill="#1e3084" text-anchor="middle">JSON output validated with zod, repaired</text>
-  <text x="1024" y="464" font-size="16" fill="#1e3084" text-anchor="middle">Retry once, then fallback provider</text>
-  <text x="1024" y="487" font-size="16" fill="#1e3084" text-anchor="middle">No key: sample mode, labelled as not AI</text>
-
-  <!-- Outside the server: database and AI services -->
-  <rect x="56" y="600" width="420" height="84" rx="10" fill="#dbe7fe" stroke="#2549e6" stroke-width="2"/>
-  <text x="266" y="626" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">PostgreSQL</text>
-  <text x="266" y="650" font-size="16" fill="#1e3084" text-anchor="middle">Local: PGlite, embedded in the Node process</text>
-  <text x="266" y="672" font-size="16" fill="#1e3084" text-anchor="middle">Deployment: hosted PostgreSQL, pg driver</text>
-
-  <rect x="824" y="600" width="188" height="84" rx="10" fill="#ffffff" stroke="#2549e6" stroke-width="2" stroke-dasharray="6 4"/>
-  <text x="918" y="636" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">OpenAI API</text>
-  <text x="918" y="660" font-size="16" fill="#1e3084" text-anchor="middle">first choice</text>
-
-  <rect x="1036" y="600" width="188" height="84" rx="10" fill="#ffffff" stroke="#2549e6" stroke-width="2" stroke-dasharray="6 4"/>
-  <text x="1130" y="636" font-size="17" font-weight="700" fill="#1e3084" text-anchor="middle">Gemini API</text>
-  <text x="1130" y="660" font-size="16" fill="#1e3084" text-anchor="middle">fallback</text>
+  <!-- Caption -->
+  <text x="640" y="620" font-size="18" font-weight="700" fill="#1e3084" text-anchor="middle">AI is used only where meaning must be judged: drafting, written answers, parent summaries and the tutor.</text>
+  <text x="640" y="650" font-size="16" fill="#44506e" text-anchor="middle">Multiple choice, true or false and exact answers are checked by code. The teacher approves every activity and can change any score.</text>
 </svg>

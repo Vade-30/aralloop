@@ -46,7 +46,7 @@ interface RoleLook {
   lane: string;
   /** The column while the pointer is on one of this role's steps in the loop. */
   lit: string;
-  /** Colours of the icon tile in the column heading, on its raised edge. */
+  /** Colours of the round icon badge in the column heading. */
   tile: string;
   avatar: "accent" | "brand" | "soft";
   /** An account card under the pointer: its border and edge take the role's colour. */
@@ -64,7 +64,7 @@ const ROLE_LOOKS: Record<Role, RoleLook> = {
     icon: GraduationCap,
     lane: "border-brand-100 bg-brand-50 hover:border-brand-300",
     lit: "group-has-[[data-loop-role=teacher]:hover]/loop:-translate-y-1 group-has-[[data-loop-role=teacher]:hover]/loop:border-brand-400",
-    tile: "bg-brand-600 text-white shadow-[0_4px_0_#162a94]",
+    tile: "bg-brand-600 text-white",
     avatar: "brand",
     cardHover: "enabled:hover:border-brand-500 enabled:hover:shadow-[0_5px_0_#93b4fd]",
     caption: "Creates and reviews activities",
@@ -80,7 +80,7 @@ const ROLE_LOOKS: Record<Role, RoleLook> = {
     icon: Backpack,
     lane: "border-accent-200 bg-accent-50 hover:border-accent-400",
     lit: "group-has-[[data-loop-role=student]:hover]/loop:-translate-y-1 group-has-[[data-loop-role=student]:hover]/loop:border-accent-500",
-    tile: "bg-accent-400 text-ink shadow-[0_4px_0_#c99a12]",
+    tile: "bg-accent-400 text-ink",
     avatar: "accent",
     cardHover: "enabled:hover:border-accent-500 enabled:hover:shadow-[0_5px_0_#fadb5f]",
     caption: "Answer activities and get feedback",
@@ -92,7 +92,7 @@ const ROLE_LOOKS: Record<Role, RoleLook> = {
     icon: HeartHandshake,
     lane: "border-brand-100 bg-brand-50 hover:border-brand-300",
     lit: "group-has-[[data-loop-role=parent]:hover]/loop:-translate-y-1 group-has-[[data-loop-role=parent]:hover]/loop:border-brand-400",
-    tile: "bg-brand-900 text-accent-400 shadow-[0_4px_0_#0f1a52]",
+    tile: "bg-brand-900 text-accent-400",
     avatar: "soft",
     cardHover: "enabled:hover:border-brand-500 enabled:hover:shadow-[0_5px_0_#93b4fd]",
     caption: "Sees how their child is doing",
@@ -168,7 +168,7 @@ export function AccountPicker({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "flex h-12 w-12 flex-none items-center justify-center rounded-2xl",
+                    "flex h-12 w-12 flex-none items-center justify-center rounded-full",
                     look.tile,
                   )}
                 >

@@ -70,8 +70,7 @@ explains instructions but refuses to give answers.
 | Grade free-text | Question, rubric, student answer | Score, feedback, confidence | Low confidence goes to the teacher for review. |
 | Parent summary | Lesson title, item results | Short plain-language summary, English or Filipino | One call per submission. |
 
-- **Model:** OpenAI API, small low-cost model. Keep a Google Gemini free-tier
-  key as a fallback behind the same function.
+- **Model:** Google Gemini API, small low-cost model.
 - **Save credits:** grade objective items in code, call AI once per activity
   and once per submission, and store every AI result in the database so a page
   reload never calls the API again.
@@ -88,7 +87,7 @@ explains instructions but refuses to give answers.
 | Frontend | React (Next.js) |
 | Backend | Node.js (Next.js API routes) |
 | Database | Supabase (PostgreSQL) |
-| AI | OpenAI API, Gemini as fallback |
+| AI | Google Gemini API |
 | Cloud | Vercel |
 
 Swap any of these for an allowed tool your team knows better.
@@ -175,7 +174,7 @@ language toggle → parent summary. Steps 1–5 of the loop are the minimum demo
 | Innovation & Creativity | 25% | The closed loop that includes the parent, not a standalone quiz generator or chatbot. |
 | Educational Impact | 25% | Feedback in seconds instead of days; parents know what to practise. |
 | AI Integration | 20% | Three distinct AI uses, each with a reason; AI picks the activity format. |
-| Technical Implementation | 15% | Structured output, code-based grading for objective items, fallback model, stored results. |
+| Technical Implementation | 15% | Structured output, code-based grading for objective items, stored results. |
 | User Experience | 10% | Three simple role views that work on a phone. |
 | Presentation & Demo | 5% | One live run of the full loop. |
 
@@ -212,7 +211,6 @@ privacy (minimal data), scalability (hosted, stateless API).
 
 - [ ] Confirm whether pre-written code is allowed or everything must be built on site.
 - [ ] Confirm how many hours of build time there are; adjust section 7.
-- [ ] Test the OpenAI key and check the remaining balance in dollars. Set a spending limit.
-- [ ] Create the Gemini fallback key.
+- [ ] Test the Gemini key and check its remaining quota.
 - [ ] Write two sample lessons yourselves (one facts-heavy, one concept-heavy) so the AI visibly picks different formats.
 - [ ] Decide the final name.

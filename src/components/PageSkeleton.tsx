@@ -44,7 +44,7 @@ export function PageSkeleton() {
           <div
             key={tile}
             aria-hidden="true"
-            className="rounded-3xl border-2 border-line bg-white px-3 py-4 shadow-edge"
+            className="rounded-3xl border-2 border-line bg-white px-3 py-4"
           >
             <Skeleton className="mx-auto h-9 w-14" />
             <Skeleton className="mx-auto mt-2.5 h-3.5 w-20 max-w-full rounded-lg" />

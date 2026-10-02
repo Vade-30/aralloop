@@ -34,7 +34,7 @@ function StudentItem({ item, number, total }: { item: DraftItem; number: number;
       id={itemCardId(item.key)}
       tabIndex={-1}
       style={{ animationDelay: `${Math.min(number - 1, 8) * 60}ms` }}
-      className="animate-rise scroll-mt-4 overflow-hidden rounded-3xl border-2 border-line bg-white shadow-edge"
+      className="animate-rise scroll-mt-4 overflow-hidden rounded-3xl border-2 border-line bg-white"
     >
       <div className="bg-brand-900 px-4 py-3 sm:px-5">
         {/* The same heading as on the student's own screen. */}

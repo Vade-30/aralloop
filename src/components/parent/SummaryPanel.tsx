@@ -77,7 +77,7 @@ function PointsCard({
   if (items.length === 0) return null;
   const { HeadIcon, ItemIcon, band, head, item: itemTone } = POINT_TONES[tone];
   return (
-    <div className="overflow-hidden rounded-3xl border-2 border-line bg-white shadow-edge">
+    <div className="overflow-hidden rounded-3xl border-2 border-line bg-white">
       <div className={cn("flex items-center gap-3 border-b-2 px-4 py-3", band)}>
         <span
           aria-hidden="true"
@@ -126,7 +126,7 @@ function SkeletonLine({ className }: { className?: string }) {
 function SummarySkeleton() {
   return (
     <div aria-hidden="true" className="space-y-4">
-      <div className="space-y-3 rounded-3xl border-2 border-line bg-white p-5 shadow-edge">
+      <div className="space-y-3 rounded-3xl border-2 border-line bg-white p-5">
         <SkeletonLine className="w-full" />
         <SkeletonLine className="w-11/12" />
         <SkeletonLine className="w-2/3" />
@@ -135,7 +135,7 @@ function SummarySkeleton() {
         {(["bg-emerald-50", "bg-amber-50"] as const).map((band) => (
           <div
             key={band}
-            className="overflow-hidden rounded-3xl border-2 border-line bg-white shadow-edge"
+            className="overflow-hidden rounded-3xl border-2 border-line bg-white"
           >
             <div className={cn("flex items-center gap-3 px-4 py-3", band)}>
               <span className="h-10 w-10 animate-pulse rounded-xl bg-white" />
@@ -303,7 +303,7 @@ export function SummaryPanel({
           )}
 
           {text.homeTip && (
-            <div className="relative overflow-hidden rounded-3xl border-2 border-accent-300 bg-accent-100 p-4 shadow-[0_5px_0_#fadb5f] sm:p-5">
+            <div className="relative overflow-hidden rounded-3xl border-2 border-accent-300 bg-accent-100 p-4 sm:p-5">
               <HomeArt className="pointer-events-none absolute -bottom-3 -right-2 hidden h-28 w-28 opacity-70 sm:block" />
               <div className="relative flex items-start gap-3.5 sm:pr-24">
                 <IconTile tone="accent">

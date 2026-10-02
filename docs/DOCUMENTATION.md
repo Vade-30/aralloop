@@ -10,7 +10,7 @@ Reading guide: sections 1 to 7 are the main story. Sections 8 to 12 are referenc
 
 ## Status
 
-AralLoop is a working prototype. Every step of the loop is implemented and has been clicked through in a browser. One full loop has been run with live AI on Google Gemini (activity draft, grading, tutor and parent summary all worked). Two things are **not yet verified**: a live call to OpenAI (its requests are tested against mocked responses only), and a hosted PostgreSQL database (only the embedded database has been run). Without an API key the app runs a labelled sample mode, which is plain code and not AI.
+AralLoop is a working prototype. Every step of the loop is implemented and has been clicked through in a browser. One full loop has been run with live AI on Google Gemini (activity draft, grading, tutor and parent summary all worked). One thing is **not yet verified**: a hosted PostgreSQL database (only the embedded database has been run). Without an API key the app runs a labelled sample mode, which is plain code and not AI.
 
 ## 1. Problem statement
 
@@ -55,7 +55,7 @@ We have not measured time saved or learning gains, and the prototype has not bee
 **Teacher**
 
 - Dashboard: lessons, their activities, draft or published status, how many students submitted, how many submissions need review.
-- New lesson: paste text or upload a .txt, .md, .pdf or .docx file (up to 4 MB). The extracted text is shown for checking before it is saved.
+- New lesson: paste text or upload a .txt, .md, .pdf or .docx file (up to 4 MB), or a photo of the lesson page, which the AI reads. The extracted text is shown for checking before it is saved.
 - Generate: choose 3 to 15 items and a format, or let the AI choose the format.
 - Draft editor: shows the AI's reason for the format. Edit the title, instructions and every item; add or remove items; save, publish or delete the draft.
 - Results: number submitted, class average, answers waiting for review, item analysis with a "Most missed" mark, and each answer with how it was graded and the AI's confidence.
@@ -80,7 +80,7 @@ We have not measured time saved or learning gains, and the prototype has not bee
 
 All four tasks go through one function (`generateJson` in `src/lib/ai/provider.ts`). It sends one request with `fetch`, asks the provider for structured JSON output that follows a schema, then parses and validates the reply against the same schema in code. Each task then applies its own checks. The tasks are four separate calls, not chained agents.
 
-OpenAI is used first when its key is set. Google Gemini is the fallback, or the main provider if there is no OpenAI key. The default model ids are `gpt-6-luna` and `gemini-3.5-flash-lite`. They are set in the code and can be changed with environment variables. The Gemini default has been confirmed with live calls; the OpenAI default has not.
+The AI service is Google Gemini. The default model id is `gemini-3.5-flash-lite`. It is set in the code, can be changed with an environment variable, and has been confirmed with live calls. The provider layer is written so that a second provider can be added as a fallback; the prototype is set up and verified with Gemini only.
 
 ### Task 1: generate an activity (`generate-activity.ts`)
 
@@ -129,7 +129,7 @@ OpenAI is used first when its key is set. Google Gemini is the fallback, or the 
 | Prompt injection | Lesson text, student answers and chat messages are wrapped in tagged blocks. Tag-like text inside them is stripped so they cannot close a block, and every system prompt says the blocks are data, never instructions. Code limits the damage too: a grade cannot exceed the item's points, and generated content goes to a draft the teacher reads. Not yet tested against a live model. |
 | The tutor is not a cheating tool | It is addressed by submission id, so it cannot be reached before the student has submitted. |
 | No harmful content | The prompts restrict the model to the teacher's lesson and tell it to write nothing unsuitable for children and never to shame a learner. These are instructions to the model, not code checks; the teacher's review is the safeguard. |
-| No sensitive personal data | The app stores a name, a role, a class link, answers and scores. All data in the prototype is made up. OpenAI requests set `store: false`. Logs hold the task, provider, duration and token counts, never the prompt, the reply or the key. The child's name is sent to the AI service for the summary and the tutor; a real deployment should review that. |
+| No sensitive personal data | The app stores a name, a role, a class link, answers and scores. All data in the prototype is made up. Logs hold the task, provider, duration and token counts, never the prompt, the reply or the key. The child's name is sent to the AI service for the summary and the tutor; a real deployment should review that. |
 
 ## 8. Error handling
 
@@ -137,7 +137,7 @@ Every API error has the shape `{ "error": { "code", "message" } }` with a messag
 
 | Where | What can go wrong | What the app does |
 |---|---|---|
-| Any AI call | Timeout, network error, rejected key, rate limit, unusable output | 45 seconds per try, 55 seconds in total. Unusable output is retried once. A busy or failing service (HTTP 429 rate limit, 408 or 5xx) is asked once more after 1.5 seconds. Then the fallback provider is tried. If all fail, the route returns 503 with a specific message, such as "The AI service took too long to answer. Please try again." |
+| Any AI call | Timeout, network error, rejected key, rate limit, unusable output | 45 seconds per try, 55 seconds in total. Unusable output is retried once. A busy or failing service (HTTP 429 rate limit, 408 or 5xx) is asked once more after 1.5 seconds. If it still fails, the route returns 503 with a specific message, such as "The AI service took too long to answer. Please try again." |
 | Lesson upload | Unsupported type, over 4 MB, empty file, locked or damaged PDF, scanned PDF, too little text | A specific message each time, with the advice to paste the text instead. Text over 20,000 characters is cut at a paragraph or sentence end and the teacher is told. |
 | Generate activity | AI fails, or fewer than three usable items | The lesson is already saved. The form says so, and "Try again" repeats only the generation. |
 | Edit and publish | Inconsistent item, no items, already published | A message naming the item number. A published activity cannot be edited or deleted (409). |
@@ -200,7 +200,7 @@ Routes are under `src/app/api`. Pages read the database on the server, so there 
 | Tailwind CSS 4 | Consistent styling with a small set of shared components. |
 | zod 4 | Validates each request body, produces the JSON schema sent to the AI provider, and validates the reply. |
 | PostgreSQL: PGlite locally, `pg` for a hosted database | PGlite is PostgreSQL embedded in the Node process, so the app runs with no database setup. The same SQL is meant to run on Supabase by setting `DATABASE_URL` (not yet run). |
-| OpenAI and Gemini APIs, called with `fetch` | Both offer structured JSON output. Two providers behind one function give a fallback, with no SDK needed. |
+| Google Gemini API, called with `fetch` | It offers structured JSON output, and plain `fetch` means no SDK is needed. |
 | unpdf, mammoth | Read text from PDF and Word files on the server. |
 | Vitest | Automated tests against an in-memory PostgreSQL and mocked AI responses. |
 
@@ -210,7 +210,7 @@ Routes are under `src/app/api`. Pages read the database on the server, so there 
 
 | Area | Tests | What is covered |
 |---|---|---|
-| AI provider layer | 69 | Provider selection, OpenAI and Gemini request and reply handling (mocked `fetch`), retry on unusable output and on a busy service, fallback, error mapping, timeout |
+| AI provider layer | 69 | Provider selection, request and reply handling (mocked `fetch`), retry on unusable output and on a busy service, fallback, error mapping, timeout |
 | The four AI tasks | 47 | Repair of generated items, clamping of grades, summary caps, prompts, sample mode, and each task's schema through the real request builders |
 | Grading | 28 | Answer normalising, checking by code, the single AI call, the "pending" path when AI fails |
 | File extraction | 25 | Text, PDF and Word files, truncation, rejected files |
@@ -226,7 +226,7 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 
 **Unverified**
 
-- No live call to OpenAI has been made; its request format and default model id are untested against the real service. Gemini has been run live for one full loop with one lesson, which is a single trial, not a measure of quality across lessons. `npm run check:ai` tests a key in a few seconds.
+- Gemini has been run live for one full loop with one lesson, which is a single trial, not a measure of quality across lessons. `npm run check:ai` tests a key in a few seconds.
 - The hosted PostgreSQL path and deployment to Vercel have not been tried.
 - AI cost and response time have not been measured. The app logs token counts for each call so they can be.
 - No testing with real users or on a range of phones.
@@ -259,7 +259,7 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 | Innovation and creativity | 25% | One loop from lesson to parent, not a standalone quiz generator or chatbot. The AI explains its format choice. The parent is part of the product. |
 | Educational impact | 25% | Feedback on every item at submission, a "most missed" view for the teacher, and a summary that tells a parent what to practise. Impact is designed for, not measured. |
 | AI integration | 20% | Four distinct AI tasks, each with a stated reason, structured output and code checks on the result. Code does what code can do. |
-| Technical implementation | 15% | Schema-validated AI output with retry and fallback, code grading for objective items, stored results, transactions, 297 automated tests. |
+| Technical implementation | 15% | Schema-validated AI output with retry, code grading for objective items, stored results, transactions, 297 automated tests. |
 | User experience | 10% | Three role views in a single-column layout sized for phones, with loading, empty and error states. |
 | Presentation and demo | 5% | The sample data has an unanswered activity for a live student run, a flagged answer for the override, and a stored summary as a backup. |
 
@@ -269,7 +269,7 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 |---|---|---|
 | Multi-language support | Yes | The parent summary is written in English and Filipino. The grading prompt accepts answers in English, Filipino or a mix, and the tutor is told to reply in the language of the question. In one live trial on Gemini the summary came back in both languages and the tutor answered a Taglish question in Taglish. |
 | Responsible AI | Yes | Teacher review, answer key withheld until submission, confidence flag, teacher override, AI labels, honest sample-mode labels, prompt-injection handling (section 7). |
-| Data privacy | Partly | Minimal data, sample data only, no prompts or keys in logs, `store: false` on OpenAI requests. There is no real authentication yet. |
+| Data privacy | Partly | Minimal data, sample data only, no prompts or keys in logs. There is no real authentication yet. |
 | Accessibility | Basics only | Labelled form fields, visible keyboard focus, errors announced to screen readers, touch targets of at least 40 px, the Filipino summary marked with its language. No audit has been done. |
 | Scalability | By design, not tested | The API keeps no application state in memory between requests: the session is a cookie and all data is in PostgreSQL. AI is called at most once per step and results are stored. Not load-tested; the hosted database is not yet run. |
 | Offline capability | No | The app runs locally without a key in sample mode, but that is not AI. |
