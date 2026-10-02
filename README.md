@@ -2,12 +2,14 @@
 
 AralLoop is a classroom web app that takes a teacher's lesson and uses AI to draft an activity, check students' free-text answers, and write a plain-language summary for parents in English and Filipino. The teacher reviews the draft before students see it and can change any score.
 
+The "Loop" in the name means that the teacher, the student and the parent are all kept in the loop on the same lesson and the same result. It does not mean that the app adapts the next lesson by itself: the teacher reads the results and decides what to teach next.
+
 It is a prototype built for the RAITE 2026 hackathon (theme: "Transforming Education Through Artificial Intelligence"). It uses sample data only.
 
 - Project documentation: [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)
 - Architecture diagram: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-## The loop
+## How it works
 
 1. A teacher pastes a lesson or uploads a file (.txt, .md, .pdf or .docx) or a photo of the lesson page, which the AI reads.
 2. AI drafts an activity. It chooses the format, writes the items, the answer key and a rubric for short answers, and says why it chose that format.
@@ -42,7 +44,9 @@ With no AI key the app still runs, in sample mode. See [Sample mode](#sample-mod
 
 ## Sample accounts
 
-There are no passwords. The first screen lists the sample accounts; choose one to use the app as that person. "Switch account" in the header goes back to the list. "Reset sample data" on the first screen restores everything below.
+The first screen lists the sample accounts, which have no passwords; choose one to use the app as that person. "Log out" in the header goes back to the list. "Reset sample data" on the first screen restores everything below.
+
+To use your own class, sign up at `/signup` with an email and a password (at least 8 characters and one number; the email is not verified). A teacher gets a new class and its join code. A student signs up with that code. A parent signs up with the code and the email of their child's account. Log in at `/login`.
 
 All names and data are made up. The sample class is Grade 7 - Sampaguita, Science, with two lessons written by the team and one published activity for each.
 
@@ -106,6 +110,7 @@ src/
       grade.ts               AI task 2: grade free-text answers
       parent-summary.ts      AI task 3: summary in English and Filipino
       tutor.ts               AI task 4: after-submission tutor
+      read-lesson-image.ts   AI task 5: reads a lesson from a photo
       mock.ts                sample mode (no AI)
     db/
       client.ts              embedded PGlite, or the pg driver when DATABASE_URL is set
@@ -147,11 +152,12 @@ Sample output says what it is. The header shows "Sample mode · no AI key". Labe
 
 - **One live trial only.** One full loop (activity draft, grading, tutor, parent summary) was run with a Gemini key and the default model `gemini-3.5-flash-lite` on 2026-10-02, and all four tasks worked. That is a single trial, not a measure of quality across lessons. Run `npm run check:ai` after adding a key.
 - **The hosted database path has not been run.** Only the embedded database has been used.
-- **Sign-in is a prototype.** Anyone who opens the site can choose any sample account, including the teacher. There are no passwords, and the cookie holds a plain user id. Do not put real student data in it.
+- **Sign-in is simple.** Accounts made by signing up have a password (stored as a scrypt hash) and a session cookie, and are never listed. Emails are not verified, a forgotten password cannot be reset, and log-in attempts are not limited. The sample accounts stay open to anyone, including the sample teacher.
 - **One class.** The sample data has one class with a join code, but there is no screen to create a class, add users or join with the code.
 - **One attempt per activity.** A published activity cannot be edited or deleted.
 - **It needs an internet connection** to reach the AI service. There is no offline AI.
-- **Scanned PDFs are not read.** They contain images, not text. The teacher is told to paste the text instead.
+- **Scanned PDFs are not read.** They contain images, not text. The teacher is told to upload a photo of the page, which the AI reads, or to paste the text.
+- **Photo reading was tried once.** One generated page of printed Filipino text was read correctly with live Gemini. Real phone photos and handwriting have not been tried. The AI can misread a word, so the teacher checks the text before saving. One photo is one page.
 - **Long lessons are cut.** A lesson can be up to 20,000 characters, and the AI reads about the first 12,000. The teacher sees a notice when this happens.
 - **Tutor conversations are not saved.** They are kept in the browser until the page is reloaded or closed.
 - The full loop has been clicked through in a desktop browser in sample mode. It has not been tested with real teachers, students or parents, or on a range of phones.

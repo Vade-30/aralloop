@@ -469,8 +469,8 @@ const SAMPLE_REASON =
  */
 export function mockGenerateActivity(input: GenerateActivityInput): GeneratedActivity {
   const count = Math.min(
-    15,
-    Math.max(3, Number.isFinite(input.itemCount) ? Math.round(input.itemCount) : 8),
+    30,
+    Math.max(3, Number.isFinite(input.itemCount) ? Math.round(input.itemCount) : 10),
   );
   const title = collapse(input.lessonTitle);
   const lessonName = title ? `the lesson ${quote(title, 100)}` : "this lesson";

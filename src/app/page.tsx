@@ -1,7 +1,7 @@
-// The role picker, the first screen of the app. Visitors choose one of the
-// sample accounts instead of signing in, because this is a prototype.
+// The first screen of the app. Visitors can try one of the sample accounts,
+// which have no password, or sign up and log in to use their own class.
 
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight, Info, UserPlus } from "lucide-react";
 import { AccountPicker, type AccountGroup } from "@/components/home/AccountPicker";
 import { HeroArt } from "@/components/home/HeroArt";
 import { HomeMotion } from "@/components/home/HomeMotion";
@@ -9,6 +9,7 @@ import { LoopStrip } from "@/components/home/LoopStrip";
 import { ResetDemoButton } from "@/components/home/ResetDemoButton";
 import { Avatar, ButtonLink, EmptyState, Page, PageHeader } from "@/components/ui";
 import { getClass, listUsers } from "@/lib/db/repo";
+import { SEED_IDS } from "@/lib/db/seed";
 import { getCurrentUser, HOME_PATH } from "@/lib/session";
 import type { Role, SchoolClass, User } from "@/lib/types";
 
@@ -35,7 +36,8 @@ export default async function RolePickerPage() {
   // Reading the session cookie also makes this page render on every request,
   // so the account list is never a stale build-time copy.
   const currentUser = await getCurrentUser();
-  const users = await listUsers();
+  // Only the sample class: accounts that people signed up for are never listed.
+  const users = await listUsers(SEED_IDS.classId);
 
   const classIds = [...new Set(users.map((user) => user.classId))];
   const classList = await Promise.all(classIds.map((id) => getClass(id)));
@@ -61,7 +63,7 @@ export default async function RolePickerPage() {
     <Page>
       <PageHeader
         eyebrow="AralLoop · AI classroom loop"
-        title="Choose an account"
+        title="Try a sample account"
         description={
           <>
             AralLoop turns a teacher&apos;s lesson into an activity, checks the answers, and
@@ -112,6 +114,37 @@ export default async function RolePickerPage() {
         </div>
       </div>
 
+      {!currentUser && (
+        <section
+          aria-labelledby="own-class"
+          className="mt-8 flex flex-col gap-4 rounded-3xl border-2 border-accent-200 bg-accent-50 p-4 sm:p-5 md:flex-row md:items-center md:justify-between md:gap-6"
+        >
+          <div className="flex min-w-0 items-start gap-3.5">
+            <span
+              aria-hidden="true"
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-accent-400 text-ink"
+            >
+              <UserPlus className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 id="own-class" className="text-lg font-extrabold leading-tight text-ink">
+                Use AralLoop with your own class
+              </h2>
+              <p className="mt-1 max-w-xl text-sm font-semibold text-amber-900">
+                Teachers sign up and get a join code. Students and parents sign up with that
+                code.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-none flex-wrap gap-3">
+            <ButtonLink href="/signup">Sign up</ButtonLink>
+            <ButtonLink href="/login" variant="secondary">
+              Log in
+            </ButtonLink>
+          </div>
+        </section>
+      )}
+
       <section
         aria-labelledby="about-accounts"
         className="mt-8 flex flex-col gap-4 rounded-3xl border-2 border-dashed border-brand-200 p-4 sm:p-5 md:flex-row md:items-start md:justify-between md:gap-6"
@@ -128,8 +161,9 @@ export default async function RolePickerPage() {
               About these accounts
             </h2>
             <p className="mt-1 max-w-xl text-sm font-semibold text-muted">
-              These are sample accounts with made-up names. There are no passwords because
-              this is a prototype.
+              These are sample accounts with made-up names and no passwords, so anyone can
+              open them. Accounts that people sign up for are private and are not listed
+              here.
             </p>
           </div>
         </div>

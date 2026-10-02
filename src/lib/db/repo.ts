@@ -26,6 +26,7 @@ import type {
   SubmissionWithAnswers,
   User,
 } from "../types";
+import { newJoinCode } from "../auth";
 import { getDb, query, transaction, type QueryFn } from "./client";
 import { insertRows, resetAndSeed, toJsonb } from "./seed";
 
@@ -34,6 +35,14 @@ export class DuplicateSubmissionError extends Error {
   constructor() {
     super("This activity was already submitted.");
     this.name = "DuplicateSubmissionError";
+  }
+}
+
+/** Thrown when someone signs up with an email that already has an account. */
+export class EmailTakenError extends Error {
+  constructor() {
+    super("An account with this email already exists.");
+    this.name = "EmailTakenError";
   }
 }
 
@@ -371,13 +380,25 @@ export async function getClass(id: string): Promise<SchoolClass | null> {
   return row ? toClass(row) : null;
 }
 
-/** All users, teachers first, then students, then parents, each by name. */
-export async function listUsers(): Promise<User[]> {
+export async function getClassByJoinCode(joinCode: string): Promise<SchoolClass | null> {
+  const [row] = await query<ClassRow>("select * from classes where join_code = $1", [
+    joinCode,
+  ]);
+  return row ? toClass(row) : null;
+}
+
+/**
+ * Users, teachers first, then students, then parents, each by name. With a
+ * class id, only the users of that class.
+ */
+export async function listUsers(classId?: string): Promise<User[]> {
   const rows = await query<UserRow>(
     `select *
        from users
+      where $1::text is null or class_id = $1
       order by case role when 'teacher' then 0 when 'student' then 1 else 2 end,
                name, id`,
+    [classId ?? null],
   );
   return rows.map(toUser);
 }
@@ -394,6 +415,126 @@ export async function listStudents(classId: string): Promise<User[]> {
     [classId],
   );
   return rows.map(toUser);
+}
+
+// --- accounts and sessions ---------------------------------------------------
+
+/**
+ * The account with this email and its stored password hash, for checking a
+ * password. The hash stays out of the User type so it cannot reach a page.
+ */
+export async function getUserWithPassword(
+  email: string,
+): Promise<{ user: User; passwordHash: string | null } | null> {
+  const [row] = await query<UserRow & { password_hash: string | null }>(
+    "select * from users where email = $1",
+    [email],
+  );
+  return row ? { user: toUser(row), passwordHash: row.password_hash } : null;
+}
+
+interface NewAccount {
+  name: string;
+  email: string;
+  passwordHash: string;
+}
+
+async function insertUser(
+  q: QueryFn,
+  input: NewAccount & { role: Role; classId: string; childId: string | null },
+): Promise<User> {
+  const [row] = await q<UserRow>(
+    `insert into users (id, name, role, class_id, child_id, email, password_hash)
+     values ($1, $2, $3, $4, $5, $6, $7)
+     returning *`,
+    [
+      crypto.randomUUID(),
+      input.name,
+      input.role,
+      input.classId,
+      input.childId,
+      input.email,
+      input.passwordHash,
+    ],
+  );
+  return toUser(row);
+}
+
+/** The name of the unique constraint an error is about, as far as it says. */
+function violatedConstraint(error: unknown): string {
+  const { constraint, message } = error as { constraint?: unknown; message?: unknown };
+  return `${typeof constraint === "string" ? constraint : ""} ${typeof message === "string" ? message : ""}`;
+}
+
+/**
+ * Creates a class with a new join code and its teacher, both or neither.
+ * Throws EmailTakenError if the email already has an account.
+ */
+export async function createTeacherWithClass(
+  input: NewAccount & { className: string; gradeLevel: string; subject: string },
+): Promise<User> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await transaction(async (q) => {
+        const classId = crypto.randomUUID();
+        await q(
+          `insert into classes (id, name, grade_level, subject, join_code)
+           values ($1, $2, $3, $4, $5)`,
+          [classId, input.className, input.gradeLevel, input.subject, newJoinCode()],
+        );
+        return insertUser(q, { ...input, role: "teacher", classId, childId: null });
+      });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      if (!violatedConstraint(error).includes("join_code")) throw new EmailTakenError();
+      // Another class already has this join code: try again with a new one.
+      if (attempt >= 3) throw error;
+    }
+  }
+}
+
+/**
+ * Adds a student or a parent to a class that exists. Throws EmailTakenError
+ * if the email already has an account.
+ */
+export async function createMember(
+  input: NewAccount & { role: "student" | "parent"; classId: string; childId: string | null },
+): Promise<User> {
+  try {
+    return await insertUser(query, input);
+  } catch (error) {
+    if (isUniqueViolation(error)) throw new EmailTakenError();
+    throw error;
+  }
+}
+
+/** Stores a session under the hash of its token. Old sessions are cleared out. */
+export async function createSession(
+  userId: string,
+  tokenHash: string,
+  expiresAt: Date,
+): Promise<void> {
+  await query("delete from sessions where expires_at < now()");
+  await query(
+    "insert into sessions (token_hash, user_id, expires_at) values ($1, $2, $3::timestamptz)",
+    [tokenHash, userId, expiresAt.toISOString()],
+  );
+}
+
+/** The user a session belongs to, or null if it is unknown or has expired. */
+export async function getSessionUser(tokenHash: string): Promise<User | null> {
+  const [row] = await query<UserRow>(
+    `select u.*
+       from sessions s
+       join users u on u.id = s.user_id
+      where s.token_hash = $1 and s.expires_at > now()`,
+    [tokenHash],
+  );
+  return row ? toUser(row) : null;
+}
+
+export async function deleteSession(tokenHash: string): Promise<void> {
+  await query("delete from sessions where token_hash = $1", [tokenHash]);
 }
 
 // --- lessons -----------------------------------------------------------------
@@ -724,7 +865,7 @@ export async function setSubmissionSummary(
 
 // --- demo --------------------------------------------------------------------
 
-/** Wipes all data and restores the sample class. */
+/** Deletes the sample class with everything in it and puts it back as new. */
 export async function resetDemoData(): Promise<void> {
   await resetAndSeed(await getDb());
 }

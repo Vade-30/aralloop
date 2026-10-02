@@ -24,8 +24,8 @@ export const LIMITS = {
   /** Shortest lesson worth generating an activity from. */
   lessonContentMin: 80,
   itemCountMin: 3,
-  itemCountMax: 15,
-  itemCountDefault: 8,
+  itemCountMax: 30,
+  itemCountDefault: 10,
   questionMax: 500,
   choiceMax: 200,
   responseMax: 2_000,
@@ -47,11 +47,71 @@ export interface ApiErrorBody {
 }
 
 // --- POST /api/session · DELETE /api/session --------------------------------
+// POST opens one of the sample accounts, which have no password. DELETE signs
+// anyone out.
 export const sessionRequest = z.object({ userId: z.string().min(1) });
 export type SessionRequest = z.infer<typeof sessionRequest>;
 export interface SessionResponse {
   user: User;
 }
+
+// --- POST /api/auth/signup · POST /api/auth/login ----------------------------
+// Both answer with SessionResponse and sign the user in.
+export const AUTH_LIMITS = {
+  nameMax: 80,
+  emailMax: 200,
+  passwordMin: 8,
+  passwordMax: 200,
+  classNameMax: 60,
+} as const;
+
+/** The password rules, one line each, for the checklist on the sign-up form. */
+export const PASSWORD_RULES: { label: string; test: (password: string) => boolean }[] = [
+  {
+    label: `At least ${AUTH_LIMITS.passwordMin} characters`,
+    test: (password) => password.length >= AUTH_LIMITS.passwordMin,
+  },
+  { label: "At least one number", test: (password) => /\d/.test(password) },
+];
+
+const email = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(AUTH_LIMITS.emailMax)
+  .pipe(z.email("Enter a valid email address."));
+const password = z
+  .string()
+  .min(AUTH_LIMITS.passwordMin, `Use at least ${AUTH_LIMITS.passwordMin} characters.`)
+  .max(AUTH_LIMITS.passwordMax)
+  .regex(/\d/, "Use at least one number.");
+const joinCode = z.string().trim().toUpperCase().min(1).max(20);
+const account = {
+  name: z.string().trim().min(1).max(AUTH_LIMITS.nameMax),
+  email,
+  password,
+};
+
+export const signupRequest = z.discriminatedUnion("role", [
+  // A teacher starts a new class and gets its join code.
+  z.object({
+    role: z.literal("teacher"),
+    ...account,
+    className: z.string().trim().min(1).max(AUTH_LIMITS.classNameMax),
+    gradeLevel: z.string().trim().min(1).max(AUTH_LIMITS.classNameMax),
+    subject: z.string().trim().min(1).max(AUTH_LIMITS.classNameMax),
+  }),
+  z.object({ role: z.literal("student"), ...account, joinCode }),
+  // A parent follows one student of the class, named by the student's email.
+  z.object({ role: z.literal("parent"), ...account, joinCode, childEmail: email }),
+]);
+export type SignupRequest = z.infer<typeof signupRequest>;
+
+export const loginRequest = z.object({
+  email,
+  password: z.string().min(1).max(AUTH_LIMITS.passwordMax),
+});
+export type LoginRequest = z.infer<typeof loginRequest>;
 
 // --- POST /api/lessons/extract (multipart/form-data, field "file") ----------
 export interface ExtractResponse {
@@ -190,4 +250,4 @@ export interface AskResponse {
 }
 
 // --- POST /api/demo/reset ----------------------------------------------------
-// Wipes all data and restores the sample class. Returns OkResponse.
+// Deletes the sample class and puts it back as new. Returns OkResponse.

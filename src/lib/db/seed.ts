@@ -13,7 +13,6 @@ import type {
   Role,
 } from "../types";
 import type { Db, QueryFn } from "./client";
-import { TABLES } from "./schema";
 
 /** Fixed ids so the role picker, the tests and the docs can refer to them. */
 export const SEED_IDS = {
@@ -749,11 +748,14 @@ export async function seedIfEmpty(db: Db): Promise<void> {
   });
 }
 
-/** Deletes every row and inserts the sample data again. */
+/**
+ * Deletes the sample class and inserts the sample data again. Everything in
+ * the class goes with it (the foreign keys cascade). Classes that people made
+ * by signing up are left alone.
+ */
 export async function resetAndSeed(db: Db): Promise<void> {
   await db.transaction(async (query) => {
-    // Table names come from the TABLES constant, not from user input.
-    await query(`truncate table ${TABLES.join(", ")} cascade`);
+    await query("delete from classes where id = $1", [SEED_IDS.classId]);
     await insertSampleData(query);
   });
 }

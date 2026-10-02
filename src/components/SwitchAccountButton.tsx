@@ -1,10 +1,10 @@
 "use client";
 
-// "Switch account" in the app header. It clears the session and goes back to
-// the role picker. It sits on the dark blue band, so it is a see-through pill
+// "Log out" in the app header. It ends the session and goes back to the
+// first screen. It sits on the dark blue band, so it is a see-through pill
 // like the AI status beside it, not one of the kit's light buttons.
 
-import { ArrowLeftRight } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
@@ -17,7 +17,7 @@ export function SwitchAccountButton() {
 
   async function switchAccount() {
     setLoading(true);
-    // Even if the request fails, the role picker lets the user choose again.
+    // Even if the request fails, the first screen lets the user choose again.
     await api<OkResponse>("/api/session", { method: "DELETE" }).catch(() => {});
     router.push("/");
     router.refresh();
@@ -35,13 +35,13 @@ export function SwitchAccountButton() {
       {loading ? (
         <Spinner className="h-4 w-4" />
       ) : (
-        // The two arrows swap places under the pointer.
-        <ArrowLeftRight
-          className="h-4 w-4 transition-[rotate] duration-300 group-hover:rotate-180"
+        // The arrow steps out of the door under the pointer.
+        <LogOut
+          className="h-4 w-4 transition-[translate] duration-150 group-hover:translate-x-0.5"
           aria-hidden="true"
         />
       )}
-      Switch account
+      Log out
     </button>
   );
 }

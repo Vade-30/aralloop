@@ -9,7 +9,8 @@
 //
 // The "alter table submissions" statement adds grading_provider to a database
 // that was created before that column existed. On a new database it does
-// nothing, because "create table" above it already has the column.
+// nothing, because "create table" above it already has the column. The two
+// "alter table users" statements do the same for email and password_hash.
 
 export const SCHEMA_SQL = `
 create table if not exists classes (
@@ -25,7 +26,21 @@ create table if not exists users (
   name     text not null,
   role     text not null check (role in ('teacher', 'student', 'parent')),
   class_id text not null references classes(id) on delete cascade,
-  child_id text references users(id) on delete set null
+  child_id text references users(id) on delete set null,
+  email         text unique,
+  password_hash text
+);
+
+alter table users
+  add column if not exists email text unique;
+
+alter table users
+  add column if not exists password_hash text;
+
+create table if not exists sessions (
+  token_hash text primary key,
+  user_id    text not null references users(id) on delete cascade,
+  expires_at timestamptz not null
 );
 
 create table if not exists lessons (
@@ -100,10 +115,12 @@ create index if not exists activities_class_idx   on activities (class_id);
 create index if not exists items_activity_idx     on items (activity_id);
 create index if not exists submissions_student_idx on submissions (student_id);
 create index if not exists answers_submission_idx on answers (submission_id);
+create index if not exists sessions_user_idx      on sessions (user_id);
 `;
 
-/** Tables in an order that is safe to truncate with cascade. */
+/** Every table, children before the tables they refer to. */
 export const TABLES = [
+  "sessions",
   "answers",
   "submissions",
   "items",

@@ -70,7 +70,7 @@ export function route<Context>(
 export async function requireUser(...roles: Role[]): Promise<User> {
   const user = await getCurrentUser();
   if (!user) {
-    throw new ApiError(401, "unauthenticated", "Choose an account first.");
+    throw new ApiError(401, "unauthenticated", "Log in first.");
   }
   if (roles.length > 0 && !roles.includes(user.role)) throw forbidden();
   return user;

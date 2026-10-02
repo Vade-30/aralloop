@@ -7,7 +7,7 @@ A slide-ready overview in four parts (browser, server, AI service, database) is 
 ## What has and has not been verified
 
 - Verified: typecheck, lint, the unit tests and the production build pass. The whole loop has been clicked through in a browser in sample mode, on the embedded database.
-- Verified with live AI: one full loop was run with a live Google Gemini key and all four AI tasks answered. `npm run check:ai` makes one small real call with the configured key.
+- Verified with live AI: one full loop was run with a live Google Gemini key and all four AI tasks of the loop answered. Reading a lesson from a photo was tried once with live Gemini, on a generated page of printed text; real phone photos and handwriting have not been tried. `npm run check:ai` makes one small real call with the configured key.
 - Not yet verified: the hosted PostgreSQL path. The `pg` driver code is written, but only PGlite has run.
 - Sample mode is not AI. With no API key the app runs plain code that builds stand-in results and labels them "Sample mode · not real AI" on screen.
 
@@ -24,10 +24,10 @@ flowchart TB
   subgraph server["Next.js server"]
     pages["Pages: server components<br/>src/app/teacher, student, parent"]
     api["API routes: 13 handlers in src/app/api<br/>session check, zod validation, error mapping"]
-    extract["File extraction: src/lib/extract.ts<br/>txt, md, pdf, docx to plain text"]
+    extract["File extraction: src/lib/extract.ts<br/>txt, md, pdf, docx to plain text<br/>a photo is passed to the AI layer"]
     grading["Grading module: src/lib/grading.ts<br/>objective items checked by code"]
     subgraph ai["AI layer: src/lib/ai"]
-      tasks["Four tasks<br/>generate activity, grade free text,<br/>parent summary, tutor"]
+      tasks["Five tasks<br/>generate activity, grade free text,<br/>parent summary, tutor, read lesson photo"]
       provider["Provider call: provider.ts<br/>zod validation, one retry"]
       mock["Sample mode: mock.ts<br/>plain code, no model, labelled on screen"]
     end
@@ -43,6 +43,7 @@ flowchart TB
   pages -->|"reads"| repo
   api -->|"reads and writes"| repo
   api -->|"uploaded lesson file"| extract
+  extract -->|"photo of a lesson page"| tasks
   api -->|"submitted answers"| grading
   api -->|"generate, summarise, tutor"| tasks
   grading -->|"free-text answers, one batch"| tasks
@@ -70,10 +71,10 @@ How to read it:
 - **API routes.** 11 route files export 13 handlers. Each handler uses the helpers in `src/lib/http.ts`: `requireUser` checks the session cookie and the role, `parseBody` validates the body with a zod schema from `src/lib/contracts.ts`, and `route()` turns any thrown error into a JSON error with a message that is safe to show. An AI failure becomes a 503 with a plain explanation. Choosing a sample account and resetting the sample data need no account.
 - **File extraction.** `src/lib/extract.ts` turns a `.txt`, `.md`, `.pdf` or `.docx` upload into plain text. It runs on the server only. A photo of a lesson page (`.jpg`, `.png`, `.webp`, `.heic`) is made smaller in the browser and read by the AI (`src/lib/ai/read-lesson-image.ts`), which only copies the words; the teacher checks the text before saving. A scanned PDF has no text, so the teacher is told to upload a photo or paste the lesson instead.
 - **Grading module.** `src/lib/grading.ts` checks objective items with plain code and sends only the undecided free-text answers to the AI layer, in one batch.
-- **AI layer.** `src/lib/ai` has four task files. Each one checks `getAiStatus()` first. With a key it calls `generateJson()` in `provider.ts`. With no key it calls `mock.ts`.
+- **AI layer.** `src/lib/ai` has five task files. Each one checks `getAiStatus()` first. With a key it calls `generateJson()` in `provider.ts`. With no key it calls `mock.ts`.
 - **Provider selection.** `GEMINI_API_KEY` set: Google Gemini is used. No key: sample mode. `AI_PROVIDER=mock` forces sample mode. The provider layer is written so that a second provider can be added as a fallback; the prototype is set up and verified with Gemini only.
 - **Repository.** `src/lib/db/repo.ts` holds all SQL. `src/lib/db/client.ts` picks the driver.
-- **Session.** Prototype sign-in only. Choosing a sample account stores its user id in an `httpOnly` cookie. There are no passwords and only sample data.
+- **Session.** People sign up and log in with an email and a password. The password is stored as a scrypt hash. The `httpOnly` cookie holds a random token, and the `sessions` table holds its SHA-256 hash, so signing out ends the session on the server. The sample accounts have no password and can be opened from the first screen by anyone.
 
 ## 2. The full loop
 
@@ -91,8 +92,12 @@ sequenceDiagram
 
   Note over T,DB: Step 1. The teacher adds a lesson
   opt The lesson is a file
-    T->>S: POST /api/lessons/extract with a txt, md, pdf or docx file
-    Note over S: Code, no AI. extract.ts reads the text,<br/>cleans it and cuts it to 20,000 characters.<br/>Nothing is stored yet.
+    T->>S: POST /api/lessons/extract with a txt, md, pdf or docx file, or a photo
+    opt The upload is a photo
+      S->>AI: The photo, made smaller in the browser
+      AI-->>S: The words on the page and its heading
+    end
+    Note over S: A file is read by code, no AI. extract.ts cleans<br/>the text and cuts it to 20,000 characters.<br/>Nothing is stored yet.
     S-->>T: Suggested title and text to review
   end
   T->>S: POST /api/lessons with the title and the text
@@ -179,10 +184,11 @@ sequenceDiagram
 | 2 | Grade free text (`grade.ts`) | `POST /api/activities/[activityId]/submissions` | At most one per submission. Zero if code settled every answer | Keeps scores in range, rounds to allowed steps, flags confidence below 0.7 |
 | 3 | Parent summary (`parent-summary.ts`) | `POST /api/submissions/[submissionId]/summary` | One per submission, then stored. One more after a teacher override or a teacher-requested rewrite | Caps lengths, fills empty fields, adds the "teacher is still checking" note |
 | 4 | Tutor (`tutor.ts`) | `POST /api/submissions/[submissionId]/ask` | One per question | Caps the reply at 1,200 characters. Nothing is stored |
+| 5 | Read lesson photo (`read-lesson-image.ts`) | `POST /api/lessons/extract`, only when the upload is a photo | One per photo | Cleans the text, cuts it to 20,000 characters, refuses a result under 80 characters. Nothing is stored; the teacher checks the text in the form before saving |
 
 ### Where code does the work instead
 
-- Reading uploaded files (`extract.ts`).
+- Reading uploaded text, PDF and Word files (`extract.ts`). Only a photo goes to AI.
 - Checking multiple choice, true or false, exact identification matches and blank answers (`checkByCode` in `grading.ts`).
 - Totals, the review flag and the class statistics on the results page.
 - Teacher overrides.

@@ -761,9 +761,10 @@ describe("submissions", () => {
 });
 
 describe("demo reset", () => {
-  it("wipes everything and restores the sample data", async () => {
+  it("wipes the sample class and restores the sample data", async () => {
     const before = await rowCounts();
     expect(before).toEqual({
+      sessions: 0,
       answers: 28,
       submissions: 5,
       items: 11,

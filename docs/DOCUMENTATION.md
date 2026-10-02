@@ -78,7 +78,7 @@ We have not measured time saved or learning gains, and the prototype has not bee
 
 ## 6. How AI is used
 
-All four tasks go through one function (`generateJson` in `src/lib/ai/provider.ts`). It sends one request with `fetch`, asks the provider for structured JSON output that follows a schema, then parses and validates the reply against the same schema in code. Each task then applies its own checks. The tasks are four separate calls, not chained agents.
+All five tasks go through one function (`generateJson` in `src/lib/ai/provider.ts`). It sends one request with `fetch`, asks the provider for structured JSON output that follows a schema, then parses and validates the reply against the same schema in code. Each task then applies its own checks. The tasks are separate calls, not chained agents.
 
 The AI service is Google Gemini. The default model id is `gemini-3.5-flash-lite`. It is set in the code, can be changed with an environment variable, and has been confirmed with live calls. The provider layer is written so that a second provider can be added as a fallback; the prototype is set up and verified with Gemini only.
 
@@ -110,6 +110,14 @@ The AI service is Google Gemini. The default model id is `gemini-3.5-flash-lite`
 - **Checks by code:** the route works only for an existing submission, and only for the student who owns it, that student's parent, or the class teacher. The reply is cut at 1,200 characters; an empty reply is an error. The prompt tells the model to use only the lesson, to say it is an AI if asked, and to refuse unrelated or unsuitable requests. The tutor has no code path to change a score.
 - **Why code cannot do it:** answering "why did I lose points on question 4?" in the asker's own language is a conversation.
 
+### Task 5: reading a lesson from a photo (`read-lesson-image.ts`)
+
+- **In:** one photo of a lesson page (JPEG, PNG, WebP or HEIC). The browser first makes it smaller, to at most 2,000 pixels on its long side.
+- **Out:** the words on the page and its heading, if it shows one.
+- **Checks by code:** the route is for teachers only and the file limit is 4 MB. The text is cleaned and cut to 20,000 characters, and a result under 80 characters is refused with the advice to take the photo again. Nothing is stored: the text goes into the lesson form with the photo beside it, and the teacher checks it before saving. The prompt tells the model to copy only, to write "[unclear]" for a word it cannot read, and to treat everything written in the photo as data, not as instructions.
+- **Why code cannot do it:** a photo holds pixels, not characters. Text, PDF and Word files are still read by code, without AI.
+- **Sample mode:** there is no stand-in for this task. Without an API key a photo is refused with the advice to paste the text.
+
 ### What is deliberately not done by AI
 
 - **Objective items are checked by code** (`checkByCode` in `src/lib/grading.ts`): multiple choice, true or false, and identification answers that match the key or an accepted answer after normalising case, accents, punctuation and leading articles ("the", "ang", "si"). True or false also accepts "tama" and "mali". Blank answers score zero without a call.
@@ -138,7 +146,7 @@ Every API error has the shape `{ "error": { "code", "message" } }` with a messag
 | Where | What can go wrong | What the app does |
 |---|---|---|
 | Any AI call | Timeout, network error, rejected key, rate limit, unusable output | 45 seconds per try, 55 seconds in total. Unusable output is retried once. A busy or failing service (HTTP 429 rate limit, 408 or 5xx) is asked once more after 1.5 seconds. If it still fails, the route returns 503 with a specific message, such as "The AI service took too long to answer. Please try again." |
-| Lesson upload | Unsupported type, over 4 MB, empty file, locked or damaged PDF, scanned PDF, too little text | A specific message each time, with the advice to paste the text instead. Text over 20,000 characters is cut at a paragraph or sentence end and the teacher is told. |
+| Lesson upload | Unsupported type, over 4 MB, empty file, locked or damaged PDF, scanned PDF, photo with no readable text, photo in sample mode, too little text | A specific message each time, with the advice to paste the text instead. Text over 20,000 characters is cut at a paragraph or sentence end and the teacher is told. |
 | Generate activity | AI fails, or fewer than three usable items | The lesson is already saved. The form says so, and "Try again" repeats only the generation. |
 | Edit and publish | Inconsistent item, no items, already published | A message naming the item number. A published activity cannot be edited or deleted (409). |
 | Submit answers | AI grading fails, or the model skips an answer | The submission is still saved and objective items keep their scores. The unsettled answers are stored as "pending" with score 0 and flagged for the teacher. The student is told the teacher will review them and the score may change. |
@@ -150,12 +158,13 @@ Every API error has the shape `{ "error": { "code", "message" } }` with a messag
 
 ## 9. Data model
 
-PostgreSQL, seven tables (`src/lib/db/schema.ts`, copy in `db/schema.sql`).
+PostgreSQL, eight tables (`src/lib/db/schema.ts`, copy in `db/schema.sql`).
 
 | Table | Main columns |
 |---|---|
 | `classes` | id, name, grade_level, subject, join_code |
-| `users` | id, name, role (teacher, student, parent), class_id, child_id (parents only) |
+| `users` | id, name, role (teacher, student, parent), class_id, child_id (parents only), email (unique), password_hash (both empty for the sample accounts) |
+| `sessions` | token_hash, user_id, expires_at |
 | `lessons` | id, class_id, title, content, created_at |
 | `activities` | id, lesson_id, class_id, title, instructions, type, ai_reason, status (draft, published), ai_provider, ai_model, created_at, published_at |
 | `items` | id, activity_id, position, type, question, choices, answer_key, accepted_answers, rubric, explanation, points |
@@ -179,7 +188,7 @@ Routes are under `src/app/api`. Pages read the database on the server, so there 
 |---|---|---|---|
 | POST | `/api/session` | Anyone | Chooses a sample account and sets the session cookie. |
 | DELETE | `/api/session` | Anyone | Signs out. |
-| POST | `/api/lessons/extract` | Teacher | Returns the text of an uploaded file and a suggested title. Stores nothing. |
+| POST | `/api/lessons/extract` | Teacher | Returns the text of an uploaded file or photo and a suggested title. A photo is read by the AI. Stores nothing. |
 | POST | `/api/lessons` | Teacher | Saves a lesson into the teacher's own class. |
 | POST | `/api/lessons/[lessonId]/activities` | Teacher | Runs AI task 1 and stores the result as a draft. |
 | PATCH | `/api/activities/[activityId]` | Teacher | Replaces the title, instructions and items of a draft. |
@@ -210,10 +219,10 @@ Routes are under `src/app/api`. Pages read the database on the server, so there 
 
 | Area | Tests | What is covered |
 |---|---|---|
-| AI provider layer | 69 | Provider selection, request and reply handling (mocked `fetch`), retry on unusable output and on a busy service, fallback, error mapping, timeout |
+| AI provider layer | 71 | Provider selection, request and reply handling (mocked `fetch`), retry on unusable output and on a busy service, fallback, error mapping, timeout |
 | The four AI tasks | 47 | Repair of generated items, clamping of grades, summary caps, prompts, sample mode, and each task's schema through the real request builders |
 | Grading | 28 | Answer normalising, checking by code, the single AI call, the "pending" path when AI fails |
-| File extraction | 25 | Text, PDF and Word files, truncation, rejected files |
+| File extraction | 31 | Text, PDF and Word files, photos through a stand-in reader, truncation, rejected files |
 | Database layer | 24 | Sample data and every write path on a real PostgreSQL engine |
 | API routes | 24 | Every route in loop order: who gets in, bad requests, one attempt only, override, summary, tutor, reset |
 | Teacher screens and editor rules | 63 | Draft editor rules, item analysis and class average, screens refuse another class's data, sample-mode wording |
@@ -227,17 +236,18 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 **Unverified**
 
 - Gemini has been run live for one full loop with one lesson, which is a single trial, not a measure of quality across lessons. `npm run check:ai` tests a key in a few seconds.
+- Reading a lesson from a photo was tried once with live Gemini, on a generated page of printed Filipino text, and was correct. Real phone photos and handwriting have not been tried.
 - The hosted PostgreSQL path and deployment to Vercel have not been tried.
 - AI cost and response time have not been measured. The app logs token counts for each call so they can be.
 - No testing with real users or on a range of phones.
 
 **Limitations of the prototype**
 
-- Sign-in is a list of sample accounts with no passwords. Anyone who opens the site can act as any account.
+- Sign-in is by email and password, but the email is not verified, a forgotten password cannot be reset, and log-in attempts are not limited. The sample accounts have no passwords, so anyone who opens the site can act as any of them.
 - One class. There is no screen to create a class, add users, or join with the join code.
 - One attempt per activity. Published activities cannot be edited.
 - AI needs an internet connection. There is no offline AI.
-- Scanned PDFs cannot be read. The AI reads only about the first 12,000 characters of a long lesson.
+- Scanned PDFs cannot be read as files; the teacher uploads a photo instead, one page at a time. The AI reads only about the first 12,000 characters of a long lesson.
 - The summary has two languages only. Tutor conversations are not stored.
 - AI can grade wrongly. The confidence flag and the teacher override reduce that risk; they do not remove it.
 
@@ -249,16 +259,16 @@ Not covered: a real AI model, a hosted database, and automated clicking through 
 - More languages for the summary, such as Cebuano and Ilocano.
 - Export of scores to formats schools already use, and links to existing school systems.
 - Regenerating a single item, more than one attempt, and progress over time for each student.
-- Reading scanned lessons with OCR.
+- Reading a lesson of several pages from several photos or from a scanned PDF.
 - A consent and data-retention process before any real student data is used.
 
 ## 15. How it meets the judging criteria
 
 | Criterion | Weight | What AralLoop offers |
 |---|---|---|
-| Innovation and creativity | 25% | One loop from lesson to parent, not a standalone quiz generator or chatbot. The AI explains its format choice. The parent is part of the product. |
+| Innovation and creativity | 25% | Keeps the teacher, the student and the parent in the loop on the same lesson, instead of being a standalone quiz generator or chatbot. The AI explains its format choice. The parent is part of the product. |
 | Educational impact | 25% | Feedback on every item at submission, a "most missed" view for the teacher, and a summary that tells a parent what to practise. Impact is designed for, not measured. |
-| AI integration | 20% | Four distinct AI tasks, each with a stated reason, structured output and code checks on the result. Code does what code can do. |
+| AI integration | 20% | Five distinct AI tasks, each with a stated reason, structured output and code checks on the result. Code does what code can do. |
 | Technical implementation | 15% | Schema-validated AI output with retry, code grading for objective items, stored results, transactions, 297 automated tests. |
 | User experience | 10% | Three role views in a single-column layout sized for phones, with loading, empty and error states. |
 | Presentation and demo | 5% | The sample data has an unanswered activity for a live student run, a flagged answer for the override, and a stored summary as a backup. |

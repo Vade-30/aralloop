@@ -1,6 +1,6 @@
 "use client";
 
-// "Reset sample data" on the role picker. It wipes everything, so it asks for
+// "Reset sample data" on the first screen. It wipes the sample class, so it asks for
 // confirmation before sending the request. It is not a main action, so it
 // looks quiet until the confirm step.
 
@@ -55,8 +55,8 @@ export function ResetDemoButton() {
     <div className="w-full animate-pop space-y-3 md:max-w-sm md:flex-none">
       {error && <Alert tone="danger">{error}</Alert>}
       <Alert tone="warning" title="Reset the sample data?">
-        This deletes every lesson, activity, answer and score, and puts back the sample
-        class. It cannot be undone.
+        This deletes every lesson, activity, answer and score of the sample class, and
+        puts the class back as new. It cannot be undone.
       </Alert>
       <div className="flex flex-wrap gap-3">
         <Button variant="danger" loading={step === "resetting"} onClick={reset}>

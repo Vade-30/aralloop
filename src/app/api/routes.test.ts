@@ -39,8 +39,15 @@ import type {
   SummaryResponse,
   UpdateActivityRequest,
 } from "@/lib/contracts";
+import { hashSessionToken, newSessionToken } from "@/lib/auth";
 import { closeDb, query } from "@/lib/db/client";
-import { getActivity, getSubmission, getSubmissionById } from "@/lib/db/repo";
+import {
+  createSession,
+  getActivity,
+  getSubmission,
+  getSubmissionById,
+  getUser,
+} from "@/lib/db/repo";
 import { SEED_CONTENT_IDS, SEED_IDS } from "@/lib/db/seed";
 import { SESSION_COOKIE } from "@/lib/session";
 import { PATCH as updateActivityRoute, DELETE as deleteActivityRoute } from "./activities/[activityId]/route";
@@ -94,7 +101,15 @@ async function call<Result>(
   { as, method = "POST", body, formData, params = {} }: CallOptions = {},
 ): Promise<{ status: number; body: Result; error: ApiErrorBody["error"] | undefined; text: string }> {
   jar.clear();
-  if (as) jar.set(SESSION_COOKIE, as);
+  if (as) {
+    // A session of the user's own. An id that names no user gets a cookie
+    // that no session matches.
+    const token = newSessionToken();
+    jar.set(SESSION_COOKIE, token);
+    if (await getUser(as)) {
+      await createSession(as, hashSessionToken(token), new Date(Date.now() + 60_000));
+    }
+  }
   const request = new Request("http://aralloop.test/api", {
     method,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
@@ -134,11 +149,33 @@ describe("session", () => {
     const signedIn = await call<SessionResponse>(signInRoute, { body: { userId: TEACHER } });
     expect(signedIn.status).toBe(200);
     expect(signedIn.body.user).toMatchObject({ id: TEACHER, role: "teacher" });
-    expect(jar.get(SESSION_COOKIE)).toBe(TEACHER);
+    // The cookie is a random token, never the user id.
+    const token = jar.get(SESSION_COOKIE) ?? "";
+    expect(token.length).toBeGreaterThan(30);
+    expect(token).not.toContain(TEACHER);
 
     const signedOut = await call<OkResponse>(signOutRoute, { as: TEACHER, method: "DELETE" });
     expect(signedOut.body).toEqual({ ok: true });
     expect(jar.has(SESSION_COOKIE)).toBe(false);
+  });
+
+  it("opens sample accounts only", async () => {
+    // An account outside the sample class is reported as missing.
+    const other = await call(signInRoute, { body: { userId: OTHER_TEACHER } });
+    expect(other.status).toBe(404);
+    expect(jar.has(SESSION_COOKIE)).toBe(false);
+  });
+
+  it("does not accept a user id as the cookie", async () => {
+    jar.clear();
+    jar.set(SESSION_COOKIE, TEACHER);
+    const request = new Request("http://aralloop.test/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Photosynthesis", content: LONG_ENOUGH }),
+    });
+    const response = await createLessonRoute(request, {} as never);
+    expect(response.status).toBe(401);
   });
 
   it("rejects an unknown account and a body without a user id", async () => {
@@ -269,7 +306,7 @@ describe("teacher: lesson, draft, publish", () => {
       publishedAt: null,
     });
     expect(activity.items.length).toBeGreaterThanOrEqual(3);
-    expect(activity.items.length).toBeLessThanOrEqual(8);
+    expect(activity.items.length).toBeLessThanOrEqual(10);
     expect(activity.items.map((item) => item.position)).toEqual(
       activity.items.map((_, index) => index + 1),
     );
@@ -607,7 +644,7 @@ describe("demo reset", () => {
     expect(await getSubmission(WATER, MIGUEL)).not.toBeNull();
   });
 
-  it("restores the sample data and signs the visitor out", async () => {
+  it("restores the sample class, signs the visitor out and leaves other classes alone", async () => {
     const result = await call<OkResponse>(resetRoute, { as: TEACHER });
     expect(result.body).toEqual({ ok: true });
     expect(jar.has(SESSION_COOKIE)).toBe(false);
@@ -619,6 +656,6 @@ describe("demo reset", () => {
       "select count(*)::int as count from users where id = $1",
       [OTHER_TEACHER],
     );
-    expect(others.count).toBe(0);
+    expect(others.count).toBe(1);
   });
 });
